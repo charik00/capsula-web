@@ -89,7 +89,9 @@ export function MobileNav() {
       { threshold: [0.25, 0.5, 0.75], rootMargin: "-20% 0px -45% 0px" }
     );
 
-    sections.forEach((section) => observer.observe(section.element));
+    sections.forEach((section) => {
+      if (section.element) observer.observe(section.element);
+    });
     return () => observer.disconnect();
   }, []);
 
