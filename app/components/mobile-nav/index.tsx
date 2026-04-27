@@ -64,9 +64,9 @@ export function MobileNav() {
   const { openModal } = useBooking();
 
   useEffect(() => {
-    const sections: Array<{ id: SectionId; element: Element }> = ["programs", "testimonials", "team"]
+    const sections: Array<{ id: SectionId; element: HTMLElement | null }> = ["programs", "testimonials", "team"]
       .map((id) => ({ id: id as SectionId, element: document.getElementById(id) }))
-      .filter((item): item is { id: SectionId; element: Element } => Boolean(item.element));
+      .filter((item): item is { id: SectionId; element: HTMLElement } => Boolean(item.element));
 
     if (!sections.length) return;
 
