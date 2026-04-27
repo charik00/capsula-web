@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+import { BookingProvider } from "./components/booking-provider";
+import { MobileNav } from "./components/mobile-nav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,8 +29,17 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning={true}
       >
-        {children}
+        <BookingProvider>
+          {children}
+          <MobileNav />
+        </BookingProvider>
+        <Script
+          src="https://cdn.userway.org/widget.js"
+          data-account="2wHGR7XGAC"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
