@@ -23,7 +23,7 @@ export function Header() {
           <img
             src="/logo%20light.svg"
             alt="CAPSULA"
-            className="hidden md:block h-20 w-auto"
+            className="hidden md:block h-24 w-auto"
           />
           <img
             src="/logo%20light.svg"
