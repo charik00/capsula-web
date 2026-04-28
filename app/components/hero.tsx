@@ -146,7 +146,7 @@ export function Hero() {
         </button>
       </div>
 
-      <div className="absolute bottom-16 md:bottom-0 left-1/2 -translate-x-1/2 md:translate-y-1/2 z-[100] bg-[#F5F3ED] p-6 md:p-8 shadow-2xl border-2 border-[#302012]">
+      <div className="absolute bottom-16 md:bottom-0 left-1/2 -translate-x-1/2 md:translate-y-1/2 z-[30] bg-[#F5F3ED] p-6 md:p-8 shadow-2xl border-2 border-[#302012]">
         <div className="text-4xl md:text-5xl mb-1 text-[#302012] text-center font-light tracking-tight">90%</div>
         <div className="text-[11px] md:text-xs text-[#302012]/70 tracking-[0.15em] uppercase text-center font-light">
           Эффективность
