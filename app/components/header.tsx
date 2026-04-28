@@ -18,17 +18,17 @@ export function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#302012]/80 backdrop-blur-md border-b border-[#F5F3ED]/10">
-      <div className="container mx-auto px-4 py-2 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-1 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img
             src="/logo%20light.svg"
             alt="CAPSULA"
-            className="hidden md:block h-28 w-auto"
+            className="hidden md:block h-24 w-auto"
           />
           <img
             src="/logo%20light.svg"
             alt="CAPSULA"
-            className="md:hidden h-24 w-auto"
+            className="md:hidden h-16 w-auto"
           />
         </div>
         

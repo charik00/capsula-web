@@ -12,12 +12,16 @@ export function Hero() {
   const { openModal } = useBooking();
 
   const toggleMute = () => {
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-    if (mobileIframeRef.current) {
-      mobileIframeRef.current.src = `https://player.vimeo.com/video/1186034210?autoplay=1&loop=1&background=1&controls=0&muted=${newMuted ? 1 : 0}`;
-    }
-  };
+  const newMuted = !isMuted;
+  setIsMuted(newMuted);
+  if (mobileIframeRef.current) {
+    mobileIframeRef.current.contentWindow?.postMessage(
+      JSON.stringify({ method: "setVolume", value: newMuted ? 0 : 1 }),
+      "*"
+    );
+  }
+};
+
 
   const toggleDesktopMute = () => {
     if (iframeRef.current) {
