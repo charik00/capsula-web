@@ -109,7 +109,7 @@ export function ContactModal({ isOpen, onClose }: ContactModalProps) {
             <h3 className="mb-6 text-lg font-medium text-[#F5F3ED]">Записаться на консультацию</h3>
             <div className="flex flex-col gap-3">
               <a
-                href="https://wa.clck.bar/972544855822"
+                href="https://wa.clck.bar/972509234400"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex w-full items-center gap-3 rounded-xl border border-[#F5F3ED]/15 bg-[#2A1507] p-4 text-[#F5F3ED] transition-colors hover:bg-[#3a2010]"
@@ -121,7 +121,7 @@ export function ContactModal({ isOpen, onClose }: ContactModalProps) {
               </a>
 
               <a
-                href="tel:+972544855822"
+                href="tel:+972509234400"
                 className="flex w-full items-center gap-3 rounded-xl border border-[#F5F3ED]/15 bg-[#2A1507] p-4 text-[#F5F3ED] transition-colors hover:bg-[#3a2010]"
               >
                 <svg
