@@ -136,7 +136,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="md:hidden absolute bottom-[100px] left-1/2 -translate-x-1/2 z-[100] w-full px-6">
+      <div className="md:hidden absolute bottom-[200px] left-1/2 -translate-x-1/2 z-[100] w-full px-6">
         <button
           onClick={openModal}
           className="w-full px-6 py-4 bg-[#F5F3ED] text-[#302012] hover:bg-[#F5F3ED]/90 transition-all flex items-center justify-center gap-3 group text-[15px]"
