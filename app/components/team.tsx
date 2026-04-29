@@ -7,15 +7,19 @@ export function Team() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const getImagePositionClass = (name: string) => {
     switch (name) {
+      case "Алекс Белый":
+        return "object-[center_8%]";
+      case "Анастасия Бели":
+        return "object-[center_10%]";
+      case "Наталья Кравченко":
+        return "object-[center_9%]";
+      case "Анна Молоко":
+        return "object-[center_10%]";
       case "Жана Якиревич":
       case "Цадок Элла":
-      case "Наталья Кравченко":
       case "Елена Николаева":
       case "Рами Михаэли":
-      case "Анна Молоко":
         return "object-[center_18%]";
-      case "Алекс Белый":
-        return "object-[center_14%]";
       default:
         return "object-[center_20%]";
     }
