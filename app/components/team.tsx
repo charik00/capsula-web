@@ -5,6 +5,21 @@ import { useState } from "react";
 
 export function Team() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const getImagePositionClass = (name: string) => {
+    switch (name) {
+      case "Жана Якиревич":
+      case "Цадок Элла":
+      case "Наталья Кравченко":
+      case "Елена Николаева":
+      case "Рами Михаэли":
+      case "Анна Молоко":
+        return "object-[center_18%]";
+      case "Алекс Белый":
+        return "object-[center_14%]";
+      default:
+        return "object-[center_20%]";
+    }
+  };
 
   const team = [
     {
@@ -145,7 +160,11 @@ export function Team() {
             >
               <div className="aspect-square overflow-hidden">
                 {member.image ? (
-                  <ImageWithFallback src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                  <ImageWithFallback
+                    src={member.image}
+                    alt={member.name}
+                    className={`w-full h-full object-cover ${getImagePositionClass(member.name)}`}
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl text-[#302012] bg-[#F5F3ED]">
                     {member.initials}
@@ -173,7 +192,11 @@ export function Team() {
             >
               <div className="aspect-square overflow-hidden">
                 {member.image ? (
-                  <ImageWithFallback src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                  <ImageWithFallback
+                    src={member.image}
+                    alt={member.name}
+                    className={`w-full h-full object-cover ${getImagePositionClass(member.name)}`}
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl text-[#302012] bg-[#F5F3ED]">
                     {member.initials}
