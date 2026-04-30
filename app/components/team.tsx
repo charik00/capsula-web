@@ -172,11 +172,18 @@ export function Team() {
                 )}
               </div>
 
-              <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl mb-2 text-[#302012]">{member.name}</h3>
-                <div className="text-[#302012]/70 mb-4 text-sm">{member.role}</div>
-                <p className="text-sm text-[#302012]/60 mb-3">{member.experience}</p>
-                <p className="text-sm text-[#302012]/50 italic mt-auto">{member.approach}</p>
+              <div className="p-4 flex-1 flex flex-col">
+                <h3 className="text-base mb-1 text-[#302012]">{member.name}</h3>
+                <div className="text-[#302012]/70 mb-3 text-sm">{member.role}</div>
+                <button
+                  className="text-sm text-[#302012]/60 underline underline-offset-2 text-left"
+                  onClick={() => setExpandedIndex(index === expandedIndex ? null : index)}
+                >
+                  {index === expandedIndex ? "Скрыть" : "Подробнее"}
+                </button>
+                {index === expandedIndex && (
+                  <p className="text-sm text-[#302012]/60 mt-3 italic">{member.approach}</p>
+                )}
               </div>
             </div>
           ))}
