@@ -260,7 +260,7 @@ export function AnketaForm() {
       {/* Выбор программы */}
       <div className="bg-white border-2 border-[#302012] p-5 md:p-6 rounded-lg space-y-3">
         <Label className="text-[#302012]">Выберите программу *</Label>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {QUESTIONNAIRES.map((qn) => (
             <button
               type="button"
@@ -269,7 +269,7 @@ export function AnketaForm() {
                 setProgram(qn.key);
                 setAnswers({});
               }}
-              className={`px-5 py-3 border text-sm transition-colors ${
+              className={`w-full px-5 py-3 border text-sm text-center transition-colors ${
                 program === qn.key
                   ? "border-[#302012] bg-[#302012] text-[#F5F3ED]"
                   : "border-[#302012]/40 text-[#302012] hover:border-[#302012]"

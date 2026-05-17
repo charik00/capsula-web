@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useBooking } from "@/app/components/booking-provider";
 
 type SectionId = "home" | "programs" | "testimonials" | "team";
@@ -62,6 +63,7 @@ const NAV_ITEMS: Array<{
 export function MobileNav() {
   const [activeSection, setActiveSection] = useState<SectionId>("home");
   const { openModal } = useBooking();
+  const pathname = usePathname();
 
   useEffect(() => {
     const sections: Array<{ id: SectionId; element: HTMLElement | null }> = ["programs", "testimonials", "team"]
@@ -100,6 +102,10 @@ export function MobileNav() {
     () => "md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#1C0F07]/95 backdrop-blur-md border-t border-[#F5F3ED]/10 h-16",
     []
   );
+
+  // Нижняя панель только на главной. На анкете/кабинете/входе она не
+  // нужна и при открытой клавиатуре «прыгает» на середину экрана.
+  if (pathname !== "/") return null;
 
   const scrollToTarget = (href: string, id: SectionId) => {
     if (id === "home") {
