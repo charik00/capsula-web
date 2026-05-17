@@ -144,8 +144,9 @@ export function AnketaForm() {
     );
   }
 
+  // text-base (16px) на мобильных, чтобы iOS не зумил поле при фокусе
   const inputCls =
-    "bg-white border-[#302012] text-[#302012] focus:border-[#302012]";
+    "bg-white border-[#302012] text-[#302012] focus:border-[#302012] text-base";
 
   const renderQuestion = (q: Question) => (
     <div key={q.id} className="space-y-2">
@@ -249,9 +250,15 @@ export function AnketaForm() {
   );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+      <div className="bg-[#302012] text-[#F5F3ED] p-4 rounded-lg text-sm">
+        Вопросы со звёздочкой <b>*</b> обязательны. Если при отправке
+        ничего не происходит — значит какой-то из них не заполнен,
+        появится подсказка с названием вопроса.
+      </div>
+
       {/* Выбор программы */}
-      <div className="bg-white border-2 border-[#302012] p-6 rounded-lg space-y-3">
+      <div className="bg-white border-2 border-[#302012] p-5 md:p-6 rounded-lg space-y-3">
         <Label className="text-[#302012]">Выберите программу *</Label>
         <div className="flex flex-wrap gap-3">
           {QUESTIONNAIRES.map((qn) => (
@@ -279,7 +286,7 @@ export function AnketaForm() {
           {questionnaire.sections.map((section) => (
             <div
               key={section.num}
-              className="bg-white border-2 border-[#302012] p-6 rounded-lg space-y-6"
+              className="bg-white border-2 border-[#302012] p-5 md:p-6 rounded-lg space-y-6"
             >
               <div className="border-b border-[#302012]/20 pb-3">
                 <p className="text-xs text-[#302012]/50 tracking-widest">
@@ -299,7 +306,7 @@ export function AnketaForm() {
           ))}
 
           {/* Контакты */}
-          <div className="bg-white border-2 border-[#302012] p-6 rounded-lg space-y-4">
+          <div className="bg-white border-2 border-[#302012] p-5 md:p-6 rounded-lg space-y-4">
             <div className="space-y-2">
               <Label className="text-[#302012]">Ваш email *</Label>
               <Input
