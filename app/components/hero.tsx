@@ -136,7 +136,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="md:hidden absolute bottom-[100px] left-1/2 -translate-x-1/2 z-[100] w-full px-6">
+      <div className="md:hidden absolute bottom-[96px] left-1/2 -translate-x-1/2 z-[100] w-full px-6">
         <button
           onClick={openModal}
           className="w-full px-6 py-4 bg-[#F5F3ED] text-[#302012] hover:bg-[#F5F3ED]/90 transition-all flex items-center justify-center gap-3 group text-[15px]"
@@ -146,7 +146,7 @@ export function Hero() {
         </button>
       </div>
 
-      <div className="absolute bottom-24 md:bottom-0 left-1/2 -translate-x-1/2 md:translate-y-1/2 z-[100] bg-[#F5F3ED] p-6 md:p-8 shadow-2xl border-2 border-[#302012]">
+      <div className="absolute bottom-[184px] md:bottom-0 left-1/2 -translate-x-1/2 md:translate-y-1/2 z-[100] bg-[#F5F3ED] p-4 md:p-8 shadow-2xl border-2 border-[#302012]">
         <div className="text-4xl md:text-5xl mb-1 text-[#302012] text-center font-light tracking-tight">90%</div>
         <div className="text-[11px] md:text-xs text-[#302012]/70 tracking-[0.15em] uppercase text-center font-light">
           Эффективность
