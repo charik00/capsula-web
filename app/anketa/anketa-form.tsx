@@ -14,6 +14,23 @@ import { Label } from "@/app/components/ui/label";
 
 type AnswerValue = string | string[];
 
+// Необязательные вопросы: «другое» (доп. поля), помеченные «по желанию»
+// и метафорические/неоднозначные. Всё остальное — обязательно.
+const OPTIONAL_IDS = new Set<string>([
+  "triggers_other",
+  "benefit_other",
+  "hard_emotions_other",
+  "food_triggers_other",
+  "trigger_foods_other",
+  "eating_emotions_other",
+  "env_factors_other",
+  "medications",
+  "cigarette_voice",
+  "craving_voice",
+]);
+
+const isRequired = (id: string) => !OPTIONAL_IDS.has(id);
+
 export function AnketaForm() {
   const [program, setProgram] = useState<string>("");
   const [email, setEmail] = useState("");
@@ -58,9 +75,13 @@ export function AnketaForm() {
       setError("Укажите ваш email");
       return;
     }
+    if (!contact.trim()) {
+      setError("Укажите номер телефона или Telegram");
+      return;
+    }
     for (const section of questionnaire.sections) {
       for (const q of section.questions) {
-        if (q.required && isEmpty(answers[q.id])) {
+        if (isRequired(q.id) && isEmpty(answers[q.id])) {
           setError(`Заполните обязательное поле: «${q.label}»`);
           return;
         }
@@ -104,7 +125,7 @@ export function AnketaForm() {
     <div key={q.id} className="space-y-2">
       <Label className="text-[#302012] leading-snug">
         {q.label}
-        {q.required ? " *" : ""}
+        {isRequired(q.id) ? " *" : ""}
       </Label>
       {q.hint && (
         <p className="text-xs text-[#302012]/50 italic">{q.hint}</p>
@@ -266,7 +287,7 @@ export function AnketaForm() {
             </div>
             <div className="space-y-2">
               <Label className="text-[#302012]">
-                Номер телефона / Telegram
+                Номер телефона / Telegram *
               </Label>
               <Input
                 type="text"

@@ -322,14 +322,44 @@ export default function AdminPage() {
                             </div>
                           )}
                           {(() => {
+                            const qn = q.program
+                              ? getQuestionnaire(q.program)
+                              : undefined;
+                            const fmt = (v: string | string[] | undefined) =>
+                              Array.isArray(v)
+                                ? v.join(", ")
+                                : (v as string) || "";
+                            if (qn) {
+                              return qn.sections.map((section) => (
+                                <div
+                                  key={section.num}
+                                  className="space-y-3"
+                                >
+                                  <p className="text-xs uppercase tracking-wider text-[#302012]/50 border-b border-[#302012]/15 pb-1 pt-2">
+                                    {section.num}. {section.title}
+                                  </p>
+                                  {section.questions.map((qq) => {
+                                    const val = fmt(q.answers[qq.id]);
+                                    return (
+                                      <div key={qq.id}>
+                                        <p className="text-sm text-[#302012]/60">
+                                          {qq.label}
+                                        </p>
+                                        <p className="text-[#302012] whitespace-pre-wrap">
+                                          {val || "—"}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ));
+                            }
                             const map = q.program
                               ? flatQuestions(q.program)
                               : {};
                             return Object.entries(q.answers).map(
                               ([k, v]) => {
-                                const val = Array.isArray(v)
-                                  ? v.join(", ")
-                                  : v;
+                                const val = fmt(v);
                                 if (!val) return null;
                                 return (
                                   <div key={k}>
