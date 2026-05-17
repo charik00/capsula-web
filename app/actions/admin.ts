@@ -239,7 +239,8 @@ export async function generateClientLoginLink(email: string) {
 // добавляет в белый список. Возвращает email и пароль для передачи.
 export async function setClientCredentials(
   email: string,
-  password?: string
+  password?: string,
+  fullName?: string
 ) {
   await assertAdmin();
   const clean = email.trim().toLowerCase();
@@ -254,9 +255,17 @@ export async function setClientCredentials(
     return { success: false, error: "Пароль минимум 6 символов" };
   }
 
+  const name = (fullName || "").trim();
   await supabaseAdmin
     .from("clients")
-    .upsert({ email: clean, is_active: true }, { onConflict: "email" });
+    .upsert(
+      {
+        email: clean,
+        is_active: true,
+        ...(name ? { full_name: name } : {}),
+      },
+      { onConflict: "email" }
+    );
 
   const created = await supabaseAdmin.auth.admin.createUser({
     email: clean,

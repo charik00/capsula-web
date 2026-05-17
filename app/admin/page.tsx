@@ -91,6 +91,7 @@ export default function AdminPage() {
   const [loginLink, setLoginLink] = useState("");
   const [isMakingLink, setIsMakingLink] = useState(false);
   const [credEmail, setCredEmail] = useState("");
+  const [credName, setCredName] = useState("");
   const [credPass, setCredPass] = useState("");
   const [credResult, setCredResult] = useState<{
     email: string;
@@ -103,7 +104,7 @@ export default function AdminPage() {
     setIsMakingCred(true);
     setCredResult(null);
     try {
-      const res = await setClientCredentials(credEmail, credPass);
+      const res = await setClientCredentials(credEmail, credPass, credName);
       if (res.success && res.email && res.password) {
         setCredResult({ email: res.email, password: res.password });
         await loadClients();
@@ -531,6 +532,16 @@ export default function AdminPage() {
                 onSubmit={handleSetCredentials}
                 className="flex flex-col sm:flex-row gap-4 sm:items-end"
               >
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[#302012]">Имя клиента</Label>
+                  <Input
+                    type="text"
+                    value={credName}
+                    onChange={(e) => setCredName(e.target.value)}
+                    className={inputCls}
+                    placeholder="Имя"
+                  />
+                </div>
                 <div className="flex-1 space-y-2">
                   <Label className="text-[#302012]">Email клиента *</Label>
                   <Input

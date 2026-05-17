@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { MeditationsList } from "./meditations-list";
 
@@ -21,6 +22,13 @@ export default async function DashboardPage() {
     redirect("/admin");
   }
 
+  const { data: clientRow } = await supabaseAdmin
+    .from("clients")
+    .select("full_name")
+    .eq("email", user.email.toLowerCase())
+    .maybeSingle();
+  const greetingName = clientRow?.full_name?.trim() || user.email;
+
   return (
     <div className="min-h-screen bg-[#F5F3ED]">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -29,7 +37,7 @@ export default async function DashboardPage() {
             Личный кабинет
           </h1>
           <p className="text-[#302012]/70">
-            Добро пожаловать, {user.email}
+            Добро пожаловать, {greetingName}
           </p>
         </div>
 

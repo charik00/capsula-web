@@ -144,7 +144,7 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
           max={duration || 100}
           step={1}
           onValueChange={handleSeek}
-          className="w-full"
+          className="w-full [&_[data-slot=slider-track]]:bg-[#302012]/25 [&_[data-slot=slider-range]]:bg-[#302012] [&_[data-slot=slider-thumb]]:bg-[#302012] [&_[data-slot=slider-thumb]]:border-[#302012]"
         />
         <div className="flex justify-between text-sm text-[#302012]/70 mt-1">
           <span>{formatTime(currentTime)}</span>
@@ -203,7 +203,7 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
             max={1}
             step={0.01}
             onValueChange={handleVolumeChange}
-            className="w-full"
+            className="w-full [&_[data-slot=slider-track]]:bg-[#302012]/25 [&_[data-slot=slider-range]]:bg-[#302012] [&_[data-slot=slider-thumb]]:bg-[#302012] [&_[data-slot=slider-thumb]]:border-[#302012]"
           />
         </div>
       </div>
