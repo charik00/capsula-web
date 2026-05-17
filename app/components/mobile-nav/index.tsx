@@ -99,7 +99,7 @@ export function MobileNav() {
   }, []);
 
   const navClass = useMemo(
-    () => "md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#1C0F07]/95 backdrop-blur-md border-t border-[#F5F3ED]/10 h-16",
+    () => "md:hidden fixed bottom-0 left-0 right-0 z-[200] bg-[#1C0F07]/95 backdrop-blur-md border-t border-[#F5F3ED]/10 h-16",
     []
   );
 
