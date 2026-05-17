@@ -62,36 +62,45 @@ export async function listMeditations() {
   return { success: true, data: data || [] };
 }
 
-export async function uploadMeditation(formData: FormData) {
+// Шаг 1: получить подписанный URL для прямой загрузки файла в Storage
+// (браузер -> Supabase напрямую, без лимита размера серверных экшенов).
+export async function createMeditationUpload(filename: string) {
   await assertAdmin();
-  const title = String(formData.get("title") || "").trim();
-  const description = String(formData.get("description") || "").trim();
-  const file = formData.get("file");
-
-  if (!title || !(file instanceof File) || file.size === 0) {
-    return { success: false, error: "Заполните название и выберите файл" };
-  }
-
-  const ext = file.name.split(".").pop() || "mp3";
+  const ext = (filename.split(".").pop() || "mp3").toLowerCase();
   const path = `meditations/${Date.now()}-${Math.random()
     .toString(36)
     .slice(2)}.${ext}`;
 
-  const { error: uploadError } = await supabaseAdmin.storage
+  const { data, error } = await supabaseAdmin.storage
     .from("media")
-    .upload(path, file, { contentType: file.type || "audio/mpeg" });
+    .createSignedUploadUrl(path);
 
-  if (uploadError) {
-    return { success: false, error: "Ошибка загрузки: " + uploadError.message };
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message || "Не удалось подготовить загрузку",
+    };
   }
+  return { success: true, path, token: data.token };
+}
 
-  // В audio_url храним приватный путь в бакете media (не публичный URL).
-  const { error: insertError } = await supabaseAdmin
+// Шаг 2: после успешной загрузки файла записать медитацию в БД.
+export async function saveMeditation(
+  title: string,
+  description: string,
+  path: string
+) {
+  await assertAdmin();
+  if (!title.trim() || !path) {
+    return { success: false, error: "Заполните название и выберите файл" };
+  }
+  const { error } = await supabaseAdmin
     .from("meditations")
-    .insert([{ title, description: description || null, audio_url: path }]);
-
-  if (insertError) {
-    return { success: false, error: "Ошибка записи: " + insertError.message };
+    .insert([
+      { title: title.trim(), description: description.trim() || null, audio_url: path },
+    ]);
+  if (error) {
+    return { success: false, error: "Ошибка записи: " + error.message };
   }
   return { success: true };
 }

@@ -25,7 +25,8 @@ import {
   addClient,
   listQuestionnaires,
   listMeditations,
-  uploadMeditation,
+  createMeditationUpload,
+  saveMeditation,
   grantAccess,
   generateClientLoginLink,
 } from "@/app/actions/admin";
@@ -156,18 +157,40 @@ export default function AdminPage() {
     }
     setIsUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("title", meditationForm.title);
-      fd.append("description", meditationForm.description);
-      fd.append("file", meditationForm.audioFile);
-      const res = await uploadMeditation(fd);
-      if (res.success) {
+      const file = meditationForm.audioFile;
+      // 1. подписанный URL для прямой загрузки в Supabase
+      const prep = await createMeditationUpload(file.name);
+      if (!prep.success || !prep.path || !prep.token) {
+        alert(prep.error || "Не удалось подготовить загрузку");
+        return;
+      }
+      // 2. браузер заливает файл напрямую в Storage (без лимита размера)
+      const up = await supabase.storage
+        .from("media")
+        .uploadToSignedUrl(prep.path, prep.token, file, {
+          contentType: file.type || "audio/mpeg",
+        });
+      if (up.error) {
+        alert("Ошибка загрузки файла: " + up.error.message);
+        return;
+      }
+      // 3. запись медитации в БД
+      const saved = await saveMeditation(
+        meditationForm.title,
+        meditationForm.description,
+        prep.path
+      );
+      if (saved.success) {
         alert("Медитация загружена!");
         setMeditationForm({ title: "", description: "", audioFile: null });
         await loadMeditations();
       } else {
-        alert(res.error || "Ошибка");
+        alert(saved.error || "Ошибка сохранения");
       }
+    } catch (err) {
+      alert(
+        "Ошибка: " + (err instanceof Error ? err.message : "неизвестная")
+      );
     } finally {
       setIsUploading(false);
     }
