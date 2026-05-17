@@ -75,45 +75,59 @@ export function AnketaForm() {
     (typeof v === "string" && !v.trim()) ||
     (Array.isArray(v) && v.length === 0);
 
+  const fail = (msg: string) => {
+    setError(msg);
+    // Нативное окно — его невозможно не заметить на планшете/телефоне
+    if (typeof window !== "undefined") window.alert(msg);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!questionnaire) {
-      setError("Выберите программу");
+      fail("Выберите программу вверху анкеты");
       return;
     }
     if (!email.trim()) {
-      setError("Укажите ваш email");
+      fail("Укажите ваш email внизу анкеты");
       return;
     }
     if (!contact.trim()) {
-      setError("Укажите номер телефона или Telegram");
+      fail("Укажите номер телефона или Telegram внизу анкеты");
       return;
     }
     for (const section of questionnaire.sections) {
       for (const q of section.questions) {
         if (isRequired(q.id) && isEmpty(answers[q.id])) {
-          setError(`Заполните обязательное поле: «${q.label}»`);
+          fail(
+            `Не заполнен обязательный вопрос: «${q.label}» (раздел «${section.title}»)`
+          );
           return;
         }
       }
     }
 
     setIsSubmitting(true);
-    const res = await submitQuestionnaire({
-      email,
-      contact,
-      program: questionnaire.key,
-      answers,
-    });
-    setIsSubmitting(false);
-
-    if (res.success) {
-      setDone(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else {
-      setError(res.error || "Ошибка при отправке");
+    try {
+      const res = await submitQuestionnaire({
+        email,
+        contact,
+        program: questionnaire.key,
+        answers,
+      });
+      if (res.success) {
+        setDone(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        fail(res.error || "Ошибка при отправке. Попробуйте ещё раз.");
+      }
+    } catch {
+      fail(
+        "Не удалось отправить анкету. Проверьте интернет и нажмите «Отправить» ещё раз."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
