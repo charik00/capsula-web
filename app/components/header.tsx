@@ -43,6 +43,9 @@ export function Header() {
           <button onClick={() => scrollToSection("team")} className="text-[#F5F3ED] hover:text-[#F5F3ED]/60 transition-colors">
             Специалисты
           </button>
+          <a href="/login" className="text-[#F5F3ED] hover:text-[#F5F3ED]/60 transition-colors">
+            Вход
+          </a>
           <button onClick={openModal} className="px-8 py-3 bg-[#F5F3ED] text-[#302012] hover:bg-[#F5F3ED]/80 transition-all">
             Записаться
           </button>
@@ -71,6 +74,9 @@ export function Header() {
             <button onClick={() => scrollToSection("team")} className="text-[#F5F3ED] hover:text-[#F5F3ED]/60 transition-colors text-left py-2">
               Специалисты
             </button>
+            <a href="/login" className="text-[#F5F3ED] hover:text-[#F5F3ED]/60 transition-colors text-left py-2">
+              Вход
+            </a>
             <button onClick={openModal} className="px-8 py-3 bg-[#F5F3ED] text-[#302012] hover:bg-[#F5F3ED]/80 transition-all text-center">
               Записаться
             </button>
