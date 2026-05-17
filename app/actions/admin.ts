@@ -162,15 +162,18 @@ export async function generateClientLoginLink(email: string) {
   const { data, error } = await supabaseAdmin.auth.admin.generateLink({
     type: "magiclink",
     email: clean,
-    options: { redirectTo: `${SITE_URL}/auth/callback?next=/dashboard` },
+    options: { redirectTo: `${SITE_URL}/auth/confirm?next=/dashboard` },
   });
 
-  if (error || !data?.properties?.action_link) {
+  const hashed = data?.properties?.hashed_token;
+  if (error || !hashed) {
     return {
       success: false,
       error: error?.message || "Не удалось сформировать ссылку",
     };
   }
 
-  return { success: true, link: data.properties.action_link };
+  const vtype = data?.properties?.verification_type || "magiclink";
+  const link = `${SITE_URL}/auth/confirm?token_hash=${hashed}&type=${vtype}&next=/dashboard`;
+  return { success: true, link };
 }
