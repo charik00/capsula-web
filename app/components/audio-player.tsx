@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  SkipBack,
+  SkipForward,
+  Loader2,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 
@@ -18,6 +26,7 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const srcLoadedRef = useRef(false);
 
@@ -26,14 +35,34 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
     if (!audio) return;
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setIsBuffering(false);
+    };
+    const handleWaiting = () => setIsBuffering(true);
+    const handlePlaying = () => {
+      setIsBuffering(false);
+      setIsPlaying(true);
+    };
+    const handlePause = () => setIsPlaying(false);
+    const handleCanPlay = () => setIsBuffering(false);
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("loadedmetadata", updateDuration);
     audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("waiting", handleWaiting);
+    audio.addEventListener("playing", handlePlaying);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("canplaythrough", handleCanPlay);
     return () => {
       audio.removeEventListener("timeupdate", updateTime);
       audio.removeEventListener("loadedmetadata", updateDuration);
       audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("waiting", handleWaiting);
+      audio.removeEventListener("playing", handlePlaying);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("canplaythrough", handleCanPlay);
     };
   }, []);
 
@@ -81,12 +110,18 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
       setIsPlaying(false);
       return;
     }
+    setIsBuffering(true);
     const ok = await resolveSrc();
-    if (!ok) return;
+    if (!ok) {
+      setIsBuffering(false);
+      return;
+    }
     try {
       await audio.play();
       setIsPlaying(true);
+      // буферизация снимется по событию "playing"
     } catch {
+      setIsBuffering(false);
       setError("Не удалось начать воспроизведение");
     }
   };
@@ -135,6 +170,9 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
 
       <div className="mb-4">
         <h3 className="text-lg font-medium text-[#302012] mb-1">{title}</h3>
+        {(isResolving || isBuffering) && !error && (
+          <p className="text-sm text-[#302012]/60">Загрузка медитации…</p>
+        )}
         {error && <p className="text-sm text-red-700">{error}</p>}
       </div>
 
@@ -164,11 +202,11 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
           </Button>
           <Button
             onClick={togglePlay}
-            disabled={isResolving}
+            disabled={isResolving || isBuffering}
             className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90 w-12 h-12 rounded-full"
           >
-            {isResolving ? (
-              <span className="text-xs">...</span>
+            {isResolving || isBuffering ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
             ) : isPlaying ? (
               <Pause className="w-6 h-6" />
             ) : (

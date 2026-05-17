@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   QUESTIONNAIRES,
   getQuestionnaire,
@@ -41,6 +41,16 @@ export function AnketaForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [error]);
 
   const questionnaire = useMemo(
     () => getQuestionnaire(program),
@@ -302,7 +312,10 @@ export function AnketaForm() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded">
+            <div
+              ref={errorRef}
+              className="bg-red-50 border-2 border-red-400 text-red-800 p-4 rounded font-medium"
+            >
               {error}
             </div>
           )}
