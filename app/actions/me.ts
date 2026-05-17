@@ -51,3 +51,35 @@ export async function getMyMeditations(): Promise<{
 
   return { allowed: true, meditations: (meditations || []) as MyMeditation[] };
 }
+
+export interface MyFile {
+  id: string;
+  title: string;
+  kind: string;
+  created_at: string;
+}
+
+// Файлы клиента (диеты, инструкции, документы) для кабинета.
+export async function getMyMaterials(): Promise<MyFile[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return [];
+  const email = user.email.toLowerCase();
+
+  const { data: client } = await supabaseAdmin
+    .from("clients")
+    .select("is_active")
+    .eq("email", email)
+    .maybeSingle();
+  if (!client || !client.is_active) return [];
+
+  const { data } = await supabaseAdmin
+    .from("client_files")
+    .select("id, title, kind, created_at")
+    .eq("client_email", email)
+    .order("created_at", { ascending: false });
+
+  return (data || []) as MyFile[];
+}

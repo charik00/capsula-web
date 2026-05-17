@@ -384,3 +384,140 @@ export async function deleteClient(email: string) {
 
   return { success: true };
 }
+
+// ===== Карточка клиента: анкета, доступы, комментарии, файлы =====
+
+export async function getClientCard(email: string) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return { success: false, error: "Не указан email" };
+
+  const [q, acc, meds, notes, files] = await Promise.all([
+    supabaseAdmin
+      .from("questionnaires")
+      .select("id, program, contact, answers, created_at")
+      .eq("client_email", clean)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("user_access")
+      .select("id, meditation_id, expires_at")
+      .eq("user_email", clean)
+      .order("expires_at", { ascending: true }),
+    supabaseAdmin.from("meditations").select("id, title"),
+    supabaseAdmin
+      .from("client_notes")
+      .select("id, body, created_at")
+      .eq("client_email", clean)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("client_files")
+      .select("id, title, kind, created_at")
+      .eq("client_email", clean)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const titles: Record<string, string> = {};
+  (meds.data || []).forEach((m) => (titles[m.id] = m.title));
+
+  return {
+    success: true,
+    data: {
+      questionnaires: q.data || [],
+      accesses: (acc.data || []).map((a) => ({
+        id: a.id,
+        meditation: titles[a.meditation_id] || a.meditation_id,
+        expires_at: a.expires_at,
+      })),
+      notes: notes.data || [],
+      files: files.data || [],
+    },
+  };
+}
+
+export async function addClientNote(email: string, body: string) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  const text = (body || "").trim();
+  if (!clean || !text) {
+    return { success: false, error: "Пустой комментарий" };
+  }
+  const { error } = await supabaseAdmin
+    .from("client_notes")
+    .insert([{ client_email: clean, body: text }]);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function deleteClientNote(id: string) {
+  await assertAdmin();
+  if (!id) return { success: false, error: "Нет id" };
+  const { error } = await supabaseAdmin
+    .from("client_notes")
+    .delete()
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function createClientFileUpload(
+  email: string,
+  filename: string
+) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return { success: false, error: "Не указан email" };
+  const ext = (filename.split(".").pop() || "dat").toLowerCase();
+  const path = `client-files/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.${ext}`;
+  const { data, error } = await supabaseAdmin.storage
+    .from("media")
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message || "Не удалось подготовить загрузку",
+    };
+  }
+  return { success: true, path, token: data.token };
+}
+
+export async function saveClientFile(
+  email: string,
+  title: string,
+  kind: string,
+  path: string
+) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean || !title.trim() || !path) {
+    return { success: false, error: "Заполните название и выберите файл" };
+  }
+  const { error } = await supabaseAdmin.from("client_files").insert([
+    {
+      client_email: clean,
+      title: title.trim(),
+      kind: kind || "document",
+      path,
+    },
+  ]);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function deleteClientFile(id: string) {
+  await assertAdmin();
+  if (!id) return { success: false, error: "Нет id" };
+  const { data: f } = await supabaseAdmin
+    .from("client_files")
+    .select("path")
+    .eq("id", id)
+    .maybeSingle();
+  const { error } = await supabaseAdmin
+    .from("client_files")
+    .delete()
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  if (f?.path) await supabaseAdmin.storage.from("media").remove([f.path]);
+  return { success: true };
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -37,6 +37,7 @@ import {
   revokeAccess,
   deleteClient,
 } from "@/app/actions/admin";
+import { ClientCard } from "./client-card";
 import { flatQuestions, getQuestionnaire } from "@/app/anketa/questions";
 
 interface Lead {
@@ -81,6 +82,7 @@ export default function AdminPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [accesses, setAccesses] = useState<AccessRow[]>([]);
+  const [openClient, setOpenClient] = useState<string | null>(null);
   const [extendDays, setExtendDays] = useState<Record<string, string>>({});
   const [openQ, setOpenQ] = useState<string | null>(null);
 
@@ -724,32 +726,51 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {clients.map((c) => (
-                      <tr
-                        key={c.id}
-                        className="border-b border-[#302012]/20"
-                      >
-                        <td className="px-6 py-4 text-[#302012]">
-                          {c.email}
-                        </td>
-                        <td className="px-6 py-4 text-[#302012]">
-                          {c.full_name || "—"}
-                        </td>
-                        <td className="px-6 py-4 text-[#302012]">
-                          {c.is_active ? "да" : "нет"}
-                        </td>
-                        <td className="px-6 py-4 text-[#302012]/70">
-                          {formatDate(c.created_at)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClient(c.email)}
-                            className="text-sm underline text-red-700 hover:opacity-70"
-                          >
-                            Удалить
-                          </button>
-                        </td>
-                      </tr>
+                      <React.Fragment key={c.id}>
+                        <tr className="border-b border-[#302012]/20">
+                          <td className="px-6 py-4 text-[#302012]">
+                            {c.email}
+                          </td>
+                          <td className="px-6 py-4 text-[#302012]">
+                            {c.full_name || "—"}
+                          </td>
+                          <td className="px-6 py-4 text-[#302012]">
+                            {c.is_active ? "да" : "нет"}
+                          </td>
+                          <td className="px-6 py-4 text-[#302012]/70">
+                            {formatDate(c.created_at)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenClient(
+                                  openClient === c.email ? null : c.email
+                                )
+                              }
+                              className="text-sm underline text-[#302012] hover:opacity-70 mr-4"
+                            >
+                              {openClient === c.email
+                                ? "Скрыть карточку"
+                                : "Открыть карточку"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteClient(c.email)}
+                              className="text-sm underline text-red-700 hover:opacity-70"
+                            >
+                              Удалить
+                            </button>
+                          </td>
+                        </tr>
+                        {openClient === c.email && (
+                          <tr>
+                            <td colSpan={5} className="p-0">
+                              <ClientCard email={c.email} />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

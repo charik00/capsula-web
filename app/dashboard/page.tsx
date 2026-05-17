@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { MeditationsList } from "./meditations-list";
+import { MaterialsList } from "./materials-list";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -42,6 +43,7 @@ export default async function DashboardPage() {
         </div>
 
         <MeditationsList />
+        <MaterialsList />
       </div>
     </div>
   );

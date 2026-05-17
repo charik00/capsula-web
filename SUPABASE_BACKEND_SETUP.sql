@@ -52,6 +52,28 @@ create table if not exists public.questionnaires (
 alter table public.questionnaires add column if not exists contact text;
 alter table public.questionnaires add column if not exists program text;
 
+-- 6. Комментарии специалистов по клиенту (видит только админ)
+create table if not exists public.client_notes (
+  id uuid primary key default gen_random_uuid(),
+  client_email text not null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+-- 7. Файлы клиента: диеты, инструкции, документы (приватный бакет media)
+create table if not exists public.client_files (
+  id uuid primary key default gen_random_uuid(),
+  client_email text not null,
+  title text not null,
+  kind text not null default 'document',
+  path text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.client_notes enable row level security;
+alter table public.client_files enable row level security;
+-- политик нет: доступ только через service_role (серверный код)
+
 -- ============================================================
 -- RLS. Серверный код ходит под service_role и RLS обходит.
 -- ============================================================
