@@ -13,6 +13,10 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  if (user.email.toLowerCase() === "morozovaalyonas@gmail.com") {
+    redirect("/admin");
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F3ED]">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
