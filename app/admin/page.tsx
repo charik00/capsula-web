@@ -31,6 +31,7 @@ import {
   deleteMeditation,
   grantAccess,
   generateClientLoginLink,
+  setClientCredentials,
 } from "@/app/actions/admin";
 import { flatQuestions, getQuestionnaire } from "@/app/anketa/questions";
 
@@ -89,6 +90,31 @@ export default function AdminPage() {
   const [linkEmail, setLinkEmail] = useState("");
   const [loginLink, setLoginLink] = useState("");
   const [isMakingLink, setIsMakingLink] = useState(false);
+  const [credEmail, setCredEmail] = useState("");
+  const [credPass, setCredPass] = useState("");
+  const [credResult, setCredResult] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+  const [isMakingCred, setIsMakingCred] = useState(false);
+
+  async function handleSetCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    setIsMakingCred(true);
+    setCredResult(null);
+    try {
+      const res = await setClientCredentials(credEmail, credPass);
+      if (res.success && res.email && res.password) {
+        setCredResult({ email: res.email, password: res.password });
+        await loadClients();
+      } else {
+        alert(res.error || "Ошибка");
+      }
+    } finally {
+      setIsMakingCred(false);
+    }
+  }
+
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -467,6 +493,80 @@ export default function AdminPage() {
                   {isAddingClient ? "..." : "Добавить"}
                 </Button>
               </form>
+            </div>
+
+            <div className="bg-white border-2 border-[#302012] p-6 rounded-lg space-y-4">
+              <div>
+                <p className="text-[#302012] font-medium">
+                  Логин и пароль клиента
+                </p>
+                <p className="text-sm text-[#302012]/60">
+                  Создай клиенту доступ по паролю и отправь ему email +
+                  пароль. С ними он может заходить в кабинет когда угодно.
+                  Пароль можно оставить пустым — сгенерируется
+                  автоматически. Повторный запуск меняет пароль.
+                </p>
+              </div>
+              <form
+                onSubmit={handleSetCredentials}
+                className="flex flex-col sm:flex-row gap-4 sm:items-end"
+              >
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[#302012]">Email клиента *</Label>
+                  <Input
+                    type="email"
+                    required
+                    value={credEmail}
+                    onChange={(e) => setCredEmail(e.target.value)}
+                    className={inputCls}
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[#302012]">
+                    Пароль (необязательно)
+                  </Label>
+                  <Input
+                    type="text"
+                    value={credPass}
+                    onChange={(e) => setCredPass(e.target.value)}
+                    className={inputCls}
+                    placeholder="оставь пустым для авто"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isMakingCred}
+                  className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                >
+                  {isMakingCred ? "..." : "Создать доступ"}
+                </Button>
+              </form>
+              {credResult && (
+                <div className="space-y-2 border border-[#302012] rounded p-3 bg-[#F5F3ED]">
+                  <p className="text-sm text-[#302012]">
+                    Передай клиенту (вход на{" "}
+                    <b>{`${"https://www.capsulaisrael.com/login"}`}</b>):
+                  </p>
+                  <p className="text-[#302012]">
+                    <b>Email:</b> {credResult.email}
+                  </p>
+                  <p className="text-[#302012]">
+                    <b>Пароль:</b> {credResult.password}
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      navigator.clipboard?.writeText(
+                        `Вход в кабинет: https://www.capsulaisrael.com/login\nEmail: ${credResult.email}\nПароль: ${credResult.password}`
+                      )
+                    }
+                    className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                  >
+                    Скопировать для отправки
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="bg-white border-2 border-[#302012] p-6 rounded-lg space-y-4">

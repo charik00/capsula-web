@@ -234,3 +234,56 @@ export async function generateClientLoginLink(email: string) {
   const link = `${SITE_URL}/auth/confirm?token_hash=${hashed}&type=${vtype}&next=/dashboard`;
   return { success: true, link };
 }
+
+// Логин+пароль для клиента. Создаёт/обновляет пользователя с паролем,
+// добавляет в белый список. Возвращает email и пароль для передачи.
+export async function setClientCredentials(
+  email: string,
+  password?: string
+) {
+  await assertAdmin();
+  const clean = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+    return { success: false, error: "Некорректный email" };
+  }
+  let pass = (password || "").trim();
+  if (!pass) {
+    pass = "Capsula-" + Math.random().toString(36).slice(2, 8);
+  }
+  if (pass.length < 6) {
+    return { success: false, error: "Пароль минимум 6 символов" };
+  }
+
+  await supabaseAdmin
+    .from("clients")
+    .upsert({ email: clean, is_active: true }, { onConflict: "email" });
+
+  const created = await supabaseAdmin.auth.admin.createUser({
+    email: clean,
+    password: pass,
+    email_confirm: true,
+  });
+
+  if (created.error) {
+    if (!/already|exist|registered/i.test(created.error.message)) {
+      return { success: false, error: created.error.message };
+    }
+    // Уже есть — найдём и обновим пароль
+    const list = await supabaseAdmin.auth.admin.listUsers();
+    const u = list.data?.users?.find(
+      (x) => x.email?.toLowerCase() === clean
+    );
+    if (!u) {
+      return { success: false, error: "Не удалось найти пользователя" };
+    }
+    const upd = await supabaseAdmin.auth.admin.updateUserById(u.id, {
+      password: pass,
+      email_confirm: true,
+    });
+    if (upd.error) {
+      return { success: false, error: upd.error.message };
+    }
+  }
+
+  return { success: true, email: clean, password: pass };
+}

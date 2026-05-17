@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -10,38 +9,26 @@ import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setMessage(null);
+    setError(null);
 
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-        },
-      });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-      if (error) {
-        console.error("Login error:", error);
-        setMessage({ type: "error", text: error.message });
-      } else {
-        setMessage({
-          type: "success",
-          text: "Проверьте вашу почту! Мы отправили вам ссылку для входа.",
-        });
-      }
-    } catch (err) {
-      console.error("Login exception:", err);
-      setMessage({ type: "error", text: "Произошла ошибка. Попробуйте позже." });
-    } finally {
+    if (error) {
+      setError("Неверный email или пароль");
       setIsLoading(false);
+      return;
     }
+    window.location.href = "/dashboard";
   };
 
   return (
@@ -61,7 +48,7 @@ export default function LoginPage() {
             Вход в личный кабинет
           </h1>
           <p className="text-[#302012]/70">
-            Введите email для получения ссылки входа
+            Введите email и пароль, которые вам выдали
           </p>
         </div>
 
@@ -69,7 +56,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-[#302012]">
-                Email *
+                Email
               </Label>
               <Input
                 id="email"
@@ -83,15 +70,25 @@ export default function LoginPage() {
               />
             </div>
 
-            {message && (
-              <div
-                className={`p-4 rounded border ${
-                  message.type === "success"
-                    ? "bg-green-50 border-green-200 text-green-800"
-                    : "bg-red-50 border-red-200 text-red-800"
-                }`}
-              >
-                {message.text}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-[#302012]">
+                Пароль
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-white border-[#302012] text-[#302012] focus:border-[#302012]"
+                placeholder="••••••••"
+                disabled={isLoading}
+              />
+            </div>
+
+            {error && (
+              <div className="p-4 rounded border bg-red-50 border-red-200 text-red-800">
+                {error}
               </div>
             )}
 
@@ -100,7 +97,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
             >
-              {isLoading ? "Отправка..." : "Отправить ссылку для входа"}
+              {isLoading ? "Вход..." : "Войти"}
             </Button>
           </form>
         </div>
