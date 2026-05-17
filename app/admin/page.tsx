@@ -110,6 +110,11 @@ export default function AdminPage() {
       } else {
         alert(res.error || "Ошибка");
       }
+    } catch (err) {
+      alert(
+        "Не удалось создать доступ: " +
+          (err instanceof Error ? err.message : "ошибка сессии, войдите в админку заново")
+      );
     } finally {
       setIsMakingCred(false);
     }
@@ -162,6 +167,11 @@ export default function AdminPage() {
       } else {
         alert(res.error || "Ошибка");
       }
+    } catch (err) {
+      alert(
+        "Не удалось создать ссылку: " +
+          (err instanceof Error ? err.message : "ошибка сессии, войдите в админку заново")
+      );
     } finally {
       setIsMakingLink(false);
     }
@@ -279,6 +289,11 @@ export default function AdminPage() {
       } else {
         alert(res.error || "Ошибка");
       }
+    } catch (err) {
+      alert(
+        "Не удалось выдать доступ: " +
+          (err instanceof Error ? err.message : "ошибка сессии, войдите в админку заново")
+      );
     } finally {
       setIsGranting(false);
     }
@@ -295,6 +310,11 @@ export default function AdminPage() {
       } else {
         alert(res.error || "Ошибка");
       }
+    } catch (err) {
+      alert(
+        "Ошибка: " +
+          (err instanceof Error ? err.message : "войдите в админку заново")
+      );
     } finally {
       setIsAddingClient(false);
     }
