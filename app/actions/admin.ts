@@ -3,7 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const ADMIN_EMAILS = ["morozovaalyonas@gmail.com"];
+const ADMIN_EMAILS = [
+  "info@capsulaisrael.com",
+  "morozovaalyonas@gmail.com",
+];
 const SITE_URL = "https://www.capsulaisrael.com";
 
 async function assertAdmin() {

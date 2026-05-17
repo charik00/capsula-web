@@ -13,7 +13,11 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  if (user.email.toLowerCase() === "morozovaalyonas@gmail.com") {
+  if (
+    ["info@capsulaisrael.com", "morozovaalyonas@gmail.com"].includes(
+      user.email.toLowerCase()
+    )
+  ) {
     redirect("/admin");
   }
 

@@ -110,8 +110,12 @@ export default function AdminPage() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user || user.email !== "morozovaalyonas@gmail.com") {
-          router.push("/");
+        const admins = [
+          "info@capsulaisrael.com",
+          "morozovaalyonas@gmail.com",
+        ];
+        if (!user?.email || !admins.includes(user.email.toLowerCase())) {
+          router.push("/admin-login");
           return;
         }
         setIsLoading(false);
@@ -651,6 +655,34 @@ export default function AdminPage() {
                   {isUploading ? "Загрузка..." : "Загрузить медитацию"}
                 </Button>
               </form>
+            </div>
+
+            <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden mt-6">
+              <div className="px-6 py-3 bg-[#302012] text-[#F5F3ED]">
+                Загруженные медитации ({meditations.length})
+              </div>
+              {meditations.length === 0 ? (
+                <div className="p-6 text-center text-[#302012]/70">
+                  Пока нет медитаций
+                </div>
+              ) : (
+                <ul className="divide-y divide-[#302012]/15">
+                  {meditations.map((m) => (
+                    <li
+                      key={m.id}
+                      className="px-6 py-3 text-[#302012]"
+                    >
+                      {m.title}
+                      {m.description ? (
+                        <span className="text-[#302012]/60">
+                          {" "}
+                          — {m.description}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </TabsContent>
 
