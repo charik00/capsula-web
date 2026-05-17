@@ -46,7 +46,7 @@ export async function listQuestionnaires() {
   await assertAdmin();
   const { data, error } = await supabaseAdmin
     .from("questionnaires")
-    .select("id, client_email, answers, created_at")
+    .select("id, client_email, contact, program, answers, created_at")
     .order("created_at", { ascending: false });
   if (error) return { success: false, error: error.message, data: [] };
   return { success: true, data: data || [] };
