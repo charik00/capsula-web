@@ -6,30 +6,30 @@ import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 
 interface AudioPlayerProps {
-  src: string;
+  meditationId: string;
   title: string;
 }
 
-export function AudioPlayer({ src, title }: AudioPlayerProps) {
+export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const srcLoadedRef = useRef(false);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
     const handleEnded = () => setIsPlaying(false);
-
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("loadedmetadata", updateDuration);
     audio.addEventListener("ended", handleEnded);
-
     return () => {
       audio.removeEventListener("timeupdate", updateTime);
       audio.removeEventListener("loadedmetadata", updateDuration);
@@ -40,28 +40,60 @@ export function AudioPlayer({ src, title }: AudioPlayerProps) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    if (isPlaying) {
-      audio.play();
-    } else {
-      audio.pause();
-    }
-  }, [isPlaying]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
     audio.volume = isMuted ? 0 : volume;
   }, [volume, isMuted]);
 
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+  const resolveSrc = async (): Promise<boolean> => {
+    if (srcLoadedRef.current) return true;
+    setIsResolving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/meditation/${meditationId}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || "Не удалось загрузить медитацию");
+        return false;
+      }
+      const { url } = await res.json();
+      const audio = audioRef.current;
+      if (!audio || !url) {
+        setError("Не удалось загрузить медитацию");
+        return false;
+      }
+      audio.src = url;
+      srcLoadedRef.current = true;
+      return true;
+    } catch {
+      setError("Ошибка сети. Попробуйте ещё раз.");
+      return false;
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+    const ok = await resolveSrc();
+    if (!ok) return;
+    try {
+      await audio.play();
+      setIsPlaying(true);
+    } catch {
+      setError("Не удалось начать воспроизведение");
+    }
   };
 
   const handleSeek = (value: number[]) => {
     const audio = audioRef.current;
-    if (audio) {
+    if (audio && srcLoadedRef.current) {
       audio.currentTime = value[0];
       setCurrentTime(value[0]);
     }
@@ -74,8 +106,11 @@ export function AudioPlayer({ src, title }: AudioPlayerProps) {
 
   const skip = (seconds: number) => {
     const audio = audioRef.current;
-    if (audio) {
-      audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + seconds));
+    if (audio && srcLoadedRef.current) {
+      audio.currentTime = Math.max(
+        0,
+        Math.min(audio.duration || 0, audio.currentTime + seconds)
+      );
     }
   };
 
@@ -87,14 +122,22 @@ export function AudioPlayer({ src, title }: AudioPlayerProps) {
   };
 
   return (
-    <div className="bg-white border-2 border-[#302012] p-6 rounded-lg shadow-lg">
-      <audio ref={audioRef} src={src} preload="metadata" />
-      
+    <div
+      className="bg-white border-2 border-[#302012] p-6 rounded-lg shadow-lg select-none"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <audio
+        ref={audioRef}
+        preload="none"
+        controlsList="nodownload noplaybackrate"
+        onContextMenu={(e) => e.preventDefault()}
+      />
+
       <div className="mb-4">
         <h3 className="text-lg font-medium text-[#302012] mb-1">{title}</h3>
+        {error && <p className="text-sm text-red-700">{error}</p>}
       </div>
 
-      {/* Прогресс-бар */}
       <div className="mb-4">
         <Slider
           value={[currentTime]}
@@ -109,7 +152,6 @@ export function AudioPlayer({ src, title }: AudioPlayerProps) {
         </div>
       </div>
 
-      {/* Кнопки управления */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button
@@ -122,9 +164,12 @@ export function AudioPlayer({ src, title }: AudioPlayerProps) {
           </Button>
           <Button
             onClick={togglePlay}
+            disabled={isResolving}
             className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90 w-12 h-12 rounded-full"
           >
-            {isPlaying ? (
+            {isResolving ? (
+              <span className="text-xs">...</span>
+            ) : isPlaying ? (
               <Pause className="w-6 h-6" />
             ) : (
               <Play className="w-6 h-6 ml-1" />
@@ -140,7 +185,6 @@ export function AudioPlayer({ src, title }: AudioPlayerProps) {
           </Button>
         </div>
 
-        {/* Громкость */}
         <div className="flex items-center gap-2 flex-1 justify-end max-w-[200px]">
           <Button
             variant="ghost"

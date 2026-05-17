@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
@@ -15,6 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select";
+import {
+  listClients,
+  addClient,
+  listQuestionnaires,
+  listMeditations,
+  uploadMeditation,
+  grantAccess,
+} from "@/app/actions/admin";
+import { flatQuestions, getQuestionnaire } from "@/app/anketa/questions";
 
 interface Lead {
   id: string;
@@ -23,11 +37,25 @@ interface Lead {
   phone: string;
   created_at: string;
 }
-
 interface Meditation {
   id: string;
   title: string;
   description: string | null;
+}
+interface Client {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+interface Questionnaire {
+  id: string;
+  client_email: string;
+  contact: string | null;
+  program: string | null;
+  answers: Record<string, string | string[]>;
+  created_at: string;
 }
 
 export default function AdminPage() {
@@ -35,188 +63,141 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [meditations, setMeditations] = useState<Meditation[]>([]);
-  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isGrantingAccess, setIsGrantingAccess] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
+  const [openQ, setOpenQ] = useState<string | null>(null);
 
-  // Форма загрузки медитации
+  const [isUploading, setIsUploading] = useState(false);
+  const [isGranting, setIsGranting] = useState(false);
+  const [isAddingClient, setIsAddingClient] = useState(false);
+
   const [meditationForm, setMeditationForm] = useState({
     title: "",
     description: "",
     audioFile: null as File | null,
   });
-
-  // Форма выдачи доступа
   const [accessForm, setAccessForm] = useState({
     userEmail: "",
     meditationId: "",
+    days: "30",
   });
+  const [clientForm, setClientForm] = useState({ email: "", fullName: "" });
 
-  // Проверка доступа
   useEffect(() => {
     async function checkAccess() {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-
         if (!user || user.email !== "morozovaalyonas@gmail.com") {
           router.push("/");
           return;
         }
-
         setIsLoading(false);
-        await loadLeads();
-        await loadMeditations();
+        await Promise.all([
+          loadLeads(),
+          loadMeditations(),
+          loadClients(),
+          loadQuestionnaires(),
+        ]);
       } catch (error) {
         console.error("Access check error:", error);
         router.push("/");
       }
     }
-
     checkAccess();
   }, [router]);
 
-  // Загрузка заявок
   async function loadLeads() {
-    setIsLoadingLeads(true);
-    try {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error loading leads:", error);
-      } else {
-        setLeads(data || []);
-      }
-    } catch (error) {
-      console.error("Load leads exception:", error);
-    } finally {
-      setIsLoadingLeads(false);
-    }
+    const { data } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setLeads(data || []);
   }
-
-  // Загрузка медитаций
   async function loadMeditations() {
-    try {
-      const { data, error } = await supabase
-        .from("meditations")
-        .select("id, title, description")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error loading meditations:", error);
-      } else {
-        setMeditations(data || []);
-      }
-    } catch (error) {
-      console.error("Load meditations exception:", error);
-    }
+    const res = await listMeditations();
+    if (res.success) setMeditations(res.data as Meditation[]);
+  }
+  async function loadClients() {
+    const res = await listClients();
+    if (res.success) setClients(res.data as Client[]);
+  }
+  async function loadQuestionnaires() {
+    const res = await listQuestionnaires();
+    if (res.success) setQuestionnaires(res.data as Questionnaire[]);
   }
 
-  // Загрузка медитации
   async function handleUploadMeditation(e: React.FormEvent) {
     e.preventDefault();
     if (!meditationForm.title || !meditationForm.audioFile) {
-      alert("Заполните все обязательные поля");
+      alert("Заполните название и выберите файл");
       return;
     }
-
     setIsUploading(true);
     try {
-      // Загружаем файл в Storage
-      const fileExt = meditationForm.audioFile.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `audio/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("audio")
-        .upload(filePath, meditationForm.audioFile);
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        alert("Ошибка при загрузке файла: " + uploadError.message);
-        setIsUploading(false);
-        return;
-      }
-
-      // Получаем публичную ссылку
-      const { data: urlData } = supabase.storage.from("audio").getPublicUrl(filePath);
-      const audioUrl = urlData.publicUrl;
-
-      // Создаем запись в таблице meditations
-      const { error: insertError } = await supabase.from("meditations").insert([
-        {
-          title: meditationForm.title,
-          description: meditationForm.description || null,
-          audio_url: audioUrl,
-        },
-      ]);
-
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        alert("Ошибка при создании записи: " + insertError.message);
-      } else {
+      const fd = new FormData();
+      fd.append("title", meditationForm.title);
+      fd.append("description", meditationForm.description);
+      fd.append("file", meditationForm.audioFile);
+      const res = await uploadMeditation(fd);
+      if (res.success) {
         alert("Медитация загружена!");
         setMeditationForm({ title: "", description: "", audioFile: null });
         await loadMeditations();
+      } else {
+        alert(res.error || "Ошибка");
       }
-    } catch (error) {
-      console.error("Upload exception:", error);
-      alert("Произошла ошибка при загрузке");
     } finally {
       setIsUploading(false);
     }
   }
 
-  // Выдача доступа
   async function handleGrantAccess(e: React.FormEvent) {
     e.preventDefault();
-    if (!accessForm.userEmail || !accessForm.meditationId) {
-      alert("Заполните все поля");
-      return;
-    }
-
-    setIsGrantingAccess(true);
+    setIsGranting(true);
     try {
-      // Устанавливаем срок действия на 1 год от текущей даты
-      const expiresAt = new Date();
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-
-      const { error } = await supabase.from("user_access").insert([
-        {
-          user_email: accessForm.userEmail,
-          meditation_id: accessForm.meditationId,
-          expires_at: expiresAt.toISOString(),
-        },
-      ]);
-
-      if (error) {
-        console.error("Grant access error:", error);
-        alert("Ошибка при выдаче доступа: " + error.message);
-      } else {
+      const res = await grantAccess(
+        accessForm.userEmail,
+        accessForm.meditationId,
+        Number(accessForm.days)
+      );
+      if (res.success) {
         alert("Доступ выдан!");
-        setAccessForm({ userEmail: "", meditationId: "" });
+        setAccessForm({ userEmail: "", meditationId: "", days: "30" });
+        await loadClients();
+      } else {
+        alert(res.error || "Ошибка");
       }
-    } catch (error) {
-      console.error("Grant access exception:", error);
-      alert("Произошла ошибка");
     } finally {
-      setIsGrantingAccess(false);
+      setIsGranting(false);
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("ru-RU", {
+  async function handleAddClient(e: React.FormEvent) {
+    e.preventDefault();
+    setIsAddingClient(true);
+    try {
+      const res = await addClient(clientForm.email, clientForm.fullName);
+      if (res.success) {
+        setClientForm({ email: "", fullName: "" });
+        await loadClients();
+      } else {
+        alert(res.error || "Ошибка");
+      }
+    } finally {
+      setIsAddingClient(false);
+    }
+  }
+
+  const formatDate = (s: string) =>
+    new Date(s).toLocaleString("ru-RU", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
 
   if (isLoading) {
     return (
@@ -226,120 +207,318 @@ export default function AdminPage() {
     );
   }
 
+  const inputCls = "bg-white border-[#302012] text-[#302012]";
+  const btnCls = "w-full bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90";
+
   return (
     <div className="min-h-screen bg-[#F5F3ED] py-8 px-4">
       <div className="container mx-auto max-w-6xl">
-        <h1 className="text-4xl font-light text-[#302012] mb-8">Панель управления</h1>
+        <h1 className="text-4xl font-light text-[#302012] mb-8">
+          Панель управления
+        </h1>
 
-        <Tabs defaultValue="leads" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white border-2 border-[#302012]">
+        <Tabs defaultValue="ankety" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-white border-2 border-[#302012]">
+            <TabsTrigger value="ankety" className="text-[#302012]">
+              Анкеты
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="text-[#302012]">
+              Клиенты
+            </TabsTrigger>
+            <TabsTrigger value="access" className="text-[#302012]">
+              Доступы
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="text-[#302012]">
+              Медитация
+            </TabsTrigger>
             <TabsTrigger value="leads" className="text-[#302012]">
               Заявки
             </TabsTrigger>
-            <TabsTrigger value="upload" className="text-[#302012]">
-              Добавить Медитацию
-            </TabsTrigger>
-            <TabsTrigger value="access" className="text-[#302012]">
-              Управление доступами
-            </TabsTrigger>
           </TabsList>
 
-          {/* Вкладка 1: Заявки */}
-          <TabsContent value="leads" className="mt-6">
+          {/* Анкеты */}
+          <TabsContent value="ankety" className="mt-6">
             <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden">
-              {isLoadingLeads ? (
-                <div className="p-8 text-center text-[#302012]/70">Загрузка...</div>
-              ) : leads.length === 0 ? (
-                <div className="p-8 text-center text-[#302012]/70">Нет заявок</div>
+              {questionnaires.length === 0 ? (
+                <div className="p-8 text-center text-[#302012]/70">
+                  Нет заполненных анкет
+                </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-[#302012] text-[#F5F3ED]">
-                      <tr>
-                        <th className="px-6 py-4 text-left">Имя</th>
-                        <th className="px-6 py-4 text-left">Фамилия</th>
-                        <th className="px-6 py-4 text-left">Телефон</th>
-                        <th className="px-6 py-4 text-left">Дата</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leads.map((lead) => (
-                        <tr
-                          key={lead.id}
-                          className="border-b border-[#302012]/20 hover:bg-[#F5F3ED]/50"
-                        >
-                          <td className="px-6 py-4 text-[#302012]">{lead.first_name}</td>
-                          <td className="px-6 py-4 text-[#302012]">{lead.last_name}</td>
-                          <td className="px-6 py-4 text-[#302012]">{lead.phone}</td>
-                          <td className="px-6 py-4 text-[#302012]/70">
-                            {formatDate(lead.created_at)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="divide-y divide-[#302012]/20">
+                  {questionnaires.map((q) => (
+                    <div key={q.id}>
+                      <button
+                        onClick={() =>
+                          setOpenQ(openQ === q.id ? null : q.id)
+                        }
+                        className="w-full flex justify-between gap-4 px-6 py-4 text-left hover:bg-[#F5F3ED]/50"
+                      >
+                        <span className="text-[#302012] font-medium">
+                          {q.client_email}
+                          {q.program && (
+                            <span className="text-[#302012]/60 font-normal">
+                              {" "}
+                              ·{" "}
+                              {getQuestionnaire(q.program)?.title ||
+                                q.program}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[#302012]/70 whitespace-nowrap">
+                          {formatDate(q.created_at)}
+                        </span>
+                      </button>
+                      {openQ === q.id && (
+                        <div className="px-6 pb-6 space-y-3">
+                          {q.contact && (
+                            <div>
+                              <p className="text-sm text-[#302012]/60">
+                                Контакт
+                              </p>
+                              <p className="text-[#302012]">{q.contact}</p>
+                            </div>
+                          )}
+                          {(() => {
+                            const map = q.program
+                              ? flatQuestions(q.program)
+                              : {};
+                            return Object.entries(q.answers).map(
+                              ([k, v]) => {
+                                const val = Array.isArray(v)
+                                  ? v.join(", ")
+                                  : v;
+                                if (!val) return null;
+                                return (
+                                  <div key={k}>
+                                    <p className="text-sm text-[#302012]/60">
+                                      {map[k]?.label || k}
+                                    </p>
+                                    <p className="text-[#302012] whitespace-pre-wrap">
+                                      {val}
+                                    </p>
+                                  </div>
+                                );
+                              }
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           </TabsContent>
 
-          {/* Вкладка 2: Добавить Медитацию */}
-          <TabsContent value="upload" className="mt-6">
+          {/* Клиенты */}
+          <TabsContent value="clients" className="mt-6 space-y-6">
+            <div className="bg-white border-2 border-[#302012] p-6 rounded-lg">
+              <form
+                onSubmit={handleAddClient}
+                className="flex flex-col sm:flex-row gap-4 sm:items-end"
+              >
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[#302012]">Email клиента *</Label>
+                  <Input
+                    type="email"
+                    required
+                    value={clientForm.email}
+                    onChange={(e) =>
+                      setClientForm({ ...clientForm, email: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[#302012]">Имя</Label>
+                  <Input
+                    type="text"
+                    value={clientForm.fullName}
+                    onChange={(e) =>
+                      setClientForm({
+                        ...clientForm,
+                        fullName: e.target.value,
+                      })
+                    }
+                    className={inputCls}
+                    placeholder="Имя Фамилия"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isAddingClient}
+                  className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                >
+                  {isAddingClient ? "..." : "Добавить"}
+                </Button>
+              </form>
+            </div>
+
+            <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden">
+              {clients.length === 0 ? (
+                <div className="p-8 text-center text-[#302012]/70">
+                  Нет клиентов
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-[#302012] text-[#F5F3ED]">
+                    <tr>
+                      <th className="px-6 py-4 text-left">Email</th>
+                      <th className="px-6 py-4 text-left">Имя</th>
+                      <th className="px-6 py-4 text-left">Активен</th>
+                      <th className="px-6 py-4 text-left">Добавлен</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clients.map((c) => (
+                      <tr
+                        key={c.id}
+                        className="border-b border-[#302012]/20"
+                      >
+                        <td className="px-6 py-4 text-[#302012]">
+                          {c.email}
+                        </td>
+                        <td className="px-6 py-4 text-[#302012]">
+                          {c.full_name || "—"}
+                        </td>
+                        <td className="px-6 py-4 text-[#302012]">
+                          {c.is_active ? "да" : "нет"}
+                        </td>
+                        <td className="px-6 py-4 text-[#302012]/70">
+                          {formatDate(c.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Доступы */}
+          <TabsContent value="access" className="mt-6">
             <div className="bg-white border-2 border-[#302012] p-8 rounded-lg">
-              <form onSubmit={handleUploadMeditation} className="space-y-6">
+              <form onSubmit={handleGrantAccess} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="title" className="text-[#302012]">
-                    Название *
+                  <Label className="text-[#302012]">Email клиента *</Label>
+                  <Input
+                    type="email"
+                    required
+                    value={accessForm.userEmail}
+                    onChange={(e) =>
+                      setAccessForm({
+                        ...accessForm,
+                        userEmail: e.target.value,
+                      })
+                    }
+                    className={inputCls}
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[#302012]">Медитация *</Label>
+                  <Select
+                    value={accessForm.meditationId}
+                    onValueChange={(v) =>
+                      setAccessForm({ ...accessForm, meditationId: v })
+                    }
+                  >
+                    <SelectTrigger className={inputCls}>
+                      <SelectValue placeholder="Выберите медитацию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {meditations.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[#302012]">
+                    Срок доступа (дней) *
                   </Label>
                   <Input
-                    id="title"
+                    type="number"
+                    min={1}
+                    required
+                    value={accessForm.days}
+                    onChange={(e) =>
+                      setAccessForm({ ...accessForm, days: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="30"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isGranting}
+                  className={btnCls}
+                >
+                  {isGranting ? "Выдача доступа..." : "Открыть доступ"}
+                </Button>
+              </form>
+            </div>
+          </TabsContent>
+
+          {/* Медитация */}
+          <TabsContent value="upload" className="mt-6">
+            <div className="bg-white border-2 border-[#302012] p-8 rounded-lg">
+              <form
+                onSubmit={handleUploadMeditation}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <Label className="text-[#302012]">Название *</Label>
+                  <Input
                     type="text"
                     required
                     value={meditationForm.title}
                     onChange={(e) =>
-                      setMeditationForm({ ...meditationForm, title: e.target.value })
+                      setMeditationForm({
+                        ...meditationForm,
+                        title: e.target.value,
+                      })
                     }
-                    className="bg-white border-[#302012] text-[#302012]"
+                    className={inputCls}
                     placeholder="Название медитации"
                   />
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="description" className="text-[#302012]">
-                    Описание
-                  </Label>
+                  <Label className="text-[#302012]">Описание</Label>
                   <Textarea
-                    id="description"
                     value={meditationForm.description}
                     onChange={(e) =>
-                      setMeditationForm({ ...meditationForm, description: e.target.value })
+                      setMeditationForm({
+                        ...meditationForm,
+                        description: e.target.value,
+                      })
                     }
-                    className="bg-white border-[#302012] text-[#302012] min-h-[100px]"
+                    className={`${inputCls} min-h-[100px]`}
                     placeholder="Описание медитации"
                   />
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="audioFile" className="text-[#302012]">
-                    Файл аудио *
-                  </Label>
+                  <Label className="text-[#302012]">Файл аудио *</Label>
                   <Input
-                    id="audioFile"
                     type="file"
                     required
                     accept="audio/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setMeditationForm({ ...meditationForm, audioFile: file });
-                    }}
-                    className="bg-white border-[#302012] text-[#302012]"
+                    onChange={(e) =>
+                      setMeditationForm({
+                        ...meditationForm,
+                        audioFile: e.target.files?.[0] || null,
+                      })
+                    }
+                    className={inputCls}
                   />
                 </div>
-
                 <Button
                   type="submit"
                   disabled={isUploading}
-                  className="w-full bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                  className={btnCls}
                 >
                   {isUploading ? "Загрузка..." : "Загрузить медитацию"}
                 </Button>
@@ -347,58 +526,46 @@ export default function AdminPage() {
             </div>
           </TabsContent>
 
-          {/* Вкладка 3: Управление доступами */}
-          <TabsContent value="access" className="mt-6">
-            <div className="bg-white border-2 border-[#302012] p-8 rounded-lg">
-              <form onSubmit={handleGrantAccess} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="userEmail" className="text-[#302012]">
-                    Email клиента *
-                  </Label>
-                  <Input
-                    id="userEmail"
-                    type="email"
-                    required
-                    value={accessForm.userEmail}
-                    onChange={(e) =>
-                      setAccessForm({ ...accessForm, userEmail: e.target.value })
-                    }
-                    className="bg-white border-[#302012] text-[#302012]"
-                    placeholder="client@example.com"
-                  />
+          {/* Заявки */}
+          <TabsContent value="leads" className="mt-6">
+            <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden">
+              {leads.length === 0 ? (
+                <div className="p-8 text-center text-[#302012]/70">
+                  Нет заявок
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="meditationId" className="text-[#302012]">
-                    Выбор медитации *
-                  </Label>
-                  <Select
-                    value={accessForm.meditationId}
-                    onValueChange={(value) =>
-                      setAccessForm({ ...accessForm, meditationId: value })
-                    }
-                  >
-                    <SelectTrigger className="bg-white border-[#302012] text-[#302012]">
-                      <SelectValue placeholder="Выберите медитацию" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {meditations.map((meditation) => (
-                        <SelectItem key={meditation.id} value={meditation.id}>
-                          {meditation.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isGrantingAccess}
-                  className="w-full bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
-                >
-                  {isGrantingAccess ? "Выдача доступа..." : "Открыть доступ"}
-                </Button>
-              </form>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-[#302012] text-[#F5F3ED]">
+                    <tr>
+                      <th className="px-6 py-4 text-left">Имя</th>
+                      <th className="px-6 py-4 text-left">Фамилия</th>
+                      <th className="px-6 py-4 text-left">Телефон</th>
+                      <th className="px-6 py-4 text-left">Дата</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.map((lead) => (
+                      <tr
+                        key={lead.id}
+                        className="border-b border-[#302012]/20"
+                      >
+                        <td className="px-6 py-4 text-[#302012]">
+                          {lead.first_name}
+                        </td>
+                        <td className="px-6 py-4 text-[#302012]">
+                          {lead.last_name}
+                        </td>
+                        <td className="px-6 py-4 text-[#302012]">
+                          {lead.phone}
+                        </td>
+                        <td className="px-6 py-4 text-[#302012]/70">
+                          {formatDate(lead.created_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </TabsContent>
         </Tabs>

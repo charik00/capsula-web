@@ -4,9 +4,17 @@ import { cookies } from "next/headers";
 export async function createClient() {
   const cookieStore = await cookies();
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY не заданы. Проверь .env и переменные Vercel."
+    );
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://bwqymhrzywfzcdzzonsd.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3cXltaHJ6eXdmemNkenpvbnNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzM5NjAsImV4cCI6MjA4NTgwOTk2MH0.27u9e9QW4vT9T6nTRg536k-QyWg5OV-BlcoSwkR6PqQ",
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
