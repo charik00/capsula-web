@@ -27,6 +27,8 @@ const OPTIONAL_IDS = new Set<string>([
   "medications",
   "cigarette_voice",
   "craving_voice",
+  "quit_attempts",
+  "past_attempts",
 ]);
 
 const isRequired = (id: string) => !OPTIONAL_IDS.has(id);
