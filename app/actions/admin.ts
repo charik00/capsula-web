@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const ADMIN_EMAILS = ["morozovaalyonas@gmail.com"];
+const SITE_URL = "https://www.capsulaisrael.com";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -131,4 +132,45 @@ export async function grantAccess(
 
   if (error) return { success: false, error: error.message };
   return { success: true };
+}
+
+// Прямая ссылка для входа клиента (без письма, обходит лимит почты).
+// Клиент попадает в белый список автоматически.
+export async function generateClientLoginLink(email: string) {
+  await assertAdmin();
+  const clean = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+    return { success: false, error: "Некорректный email" };
+  }
+
+  await supabaseAdmin
+    .from("clients")
+    .upsert({ email: clean, is_active: true }, { onConflict: "email" });
+
+  // Пользователь должен существовать для magiclink
+  const created = await supabaseAdmin.auth.admin.createUser({
+    email: clean,
+    email_confirm: true,
+  });
+  if (
+    created.error &&
+    !/already|exist|registered/i.test(created.error.message)
+  ) {
+    return { success: false, error: created.error.message };
+  }
+
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: "magiclink",
+    email: clean,
+    options: { redirectTo: `${SITE_URL}/auth/callback?next=/dashboard` },
+  });
+
+  if (error || !data?.properties?.action_link) {
+    return {
+      success: false,
+      error: error?.message || "Не удалось сформировать ссылку",
+    };
+  }
+
+  return { success: true, link: data.properties.action_link };
 }

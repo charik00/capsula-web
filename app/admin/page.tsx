@@ -27,6 +27,7 @@ import {
   listMeditations,
   uploadMeditation,
   grantAccess,
+  generateClientLoginLink,
 } from "@/app/actions/admin";
 import { flatQuestions, getQuestionnaire } from "@/app/anketa/questions";
 
@@ -82,6 +83,25 @@ export default function AdminPage() {
     days: "30",
   });
   const [clientForm, setClientForm] = useState({ email: "", fullName: "" });
+  const [linkEmail, setLinkEmail] = useState("");
+  const [loginLink, setLoginLink] = useState("");
+  const [isMakingLink, setIsMakingLink] = useState(false);
+
+  async function handleMakeLoginLink(e: React.FormEvent) {
+    e.preventDefault();
+    setIsMakingLink(true);
+    setLoginLink("");
+    try {
+      const res = await generateClientLoginLink(linkEmail);
+      if (res.success && res.link) {
+        setLoginLink(res.link);
+      } else {
+        alert(res.error || "Ошибка");
+      }
+    } finally {
+      setIsMakingLink(false);
+    }
+  }
 
   useEffect(() => {
     async function checkAccess() {
@@ -353,6 +373,61 @@ export default function AdminPage() {
                   {isAddingClient ? "..." : "Добавить"}
                 </Button>
               </form>
+            </div>
+
+            <div className="bg-white border-2 border-[#302012] p-6 rounded-lg space-y-4">
+              <div>
+                <p className="text-[#302012] font-medium">
+                  Ссылка для входа клиента (без письма)
+                </p>
+                <p className="text-sm text-[#302012]/60">
+                  Сгенерируй и отправь клиенту в WhatsApp/Telegram. Обходит
+                  лимит почты. Ссылка одноразовая, действует ~1 час.
+                </p>
+              </div>
+              <form
+                onSubmit={handleMakeLoginLink}
+                className="flex flex-col sm:flex-row gap-4 sm:items-end"
+              >
+                <div className="flex-1 space-y-2">
+                  <Label className="text-[#302012]">Email клиента *</Label>
+                  <Input
+                    type="email"
+                    required
+                    value={linkEmail}
+                    onChange={(e) => setLinkEmail(e.target.value)}
+                    className={inputCls}
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isMakingLink}
+                  className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                >
+                  {isMakingLink ? "..." : "Получить ссылку"}
+                </Button>
+              </form>
+              {loginLink && (
+                <div className="space-y-2">
+                  <textarea
+                    readOnly
+                    value={loginLink}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full text-xs p-3 border border-[#302012] rounded bg-[#F5F3ED] text-[#302012] break-all"
+                    rows={3}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      navigator.clipboard?.writeText(loginLink)
+                    }
+                    className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                  >
+                    Скопировать ссылку
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden">
