@@ -108,6 +108,51 @@ export async function saveMeditation(
   return { success: true };
 }
 
+export async function updateMeditation(
+  id: string,
+  title: string,
+  description: string
+) {
+  await assertAdmin();
+  if (!id || !title.trim()) {
+    return { success: false, error: "Название не может быть пустым" };
+  }
+  const { error } = await supabaseAdmin
+    .from("meditations")
+    .update({
+      title: title.trim(),
+      description: description.trim() || null,
+    })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function deleteMeditation(id: string) {
+  await assertAdmin();
+  if (!id) return { success: false, error: "Не указана медитация" };
+
+  // Узнаём путь к файлу, чтобы удалить и из хранилища
+  const { data: med } = await supabaseAdmin
+    .from("meditations")
+    .select("audio_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Удаляем запись (user_access чистится каскадом по FK)
+  const { error } = await supabaseAdmin
+    .from("meditations")
+    .delete()
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  // Удаляем файл из бакета (если это путь, а не внешний URL)
+  if (med?.audio_url && !/^https?:\/\//i.test(med.audio_url)) {
+    await supabaseAdmin.storage.from("media").remove([med.audio_url]);
+  }
+  return { success: true };
+}
+
 export async function grantAccess(
   email: string,
   meditationId: string,

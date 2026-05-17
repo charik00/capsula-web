@@ -27,6 +27,8 @@ import {
   listMeditations,
   createMeditationUpload,
   saveMeditation,
+  updateMeditation,
+  deleteMeditation,
   grantAccess,
   generateClientLoginLink,
 } from "@/app/actions/admin";
@@ -87,6 +89,41 @@ export default function AdminPage() {
   const [linkEmail, setLinkEmail] = useState("");
   const [loginLink, setLoginLink] = useState("");
   const [isMakingLink, setIsMakingLink] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+
+  function startEdit(m: Meditation) {
+    setEditId(m.id);
+    setEditTitle(m.title);
+    setEditDesc(m.description || "");
+  }
+
+  async function saveEdit() {
+    if (!editId) return;
+    const res = await updateMeditation(editId, editTitle, editDesc);
+    if (res.success) {
+      setEditId(null);
+      await loadMeditations();
+    } else {
+      alert(res.error || "Ошибка");
+    }
+  }
+
+  async function removeMeditation(id: string, title: string) {
+    if (
+      !confirm(
+        `Удалить медитацию «${title}»? Доступы клиентов к ней тоже исчезнут. Действие необратимо.`
+      )
+    )
+      return;
+    const res = await deleteMeditation(id);
+    if (res.success) {
+      await loadMeditations();
+    } else {
+      alert(res.error || "Ошибка");
+    }
+  }
 
   async function handleMakeLoginLink(e: React.FormEvent) {
     e.preventDefault();
@@ -668,17 +705,68 @@ export default function AdminPage() {
               ) : (
                 <ul className="divide-y divide-[#302012]/15">
                   {meditations.map((m) => (
-                    <li
-                      key={m.id}
-                      className="px-6 py-3 text-[#302012]"
-                    >
-                      {m.title}
-                      {m.description ? (
-                        <span className="text-[#302012]/60">
-                          {" "}
-                          — {m.description}
-                        </span>
-                      ) : null}
+                    <li key={m.id} className="px-6 py-4 text-[#302012]">
+                      {editId === m.id ? (
+                        <div className="space-y-3">
+                          <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className={inputCls}
+                            placeholder="Название"
+                          />
+                          <Textarea
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            className={`${inputCls} min-h-[70px]`}
+                            placeholder="Описание"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              onClick={saveEdit}
+                              className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                            >
+                              Сохранить
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => setEditId(null)}
+                              className="bg-transparent border border-[#302012] text-[#302012] hover:bg-[#302012]/10"
+                            >
+                              Отмена
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-medium">{m.title}</p>
+                            {m.description && (
+                              <p className="text-sm text-[#302012]/60">
+                                {m.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(m)}
+                              className="text-sm underline text-[#302012] hover:opacity-70"
+                            >
+                              Изменить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeMeditation(m.id, m.title)
+                              }
+                              className="text-sm underline text-red-700 hover:opacity-70"
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
