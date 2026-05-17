@@ -296,3 +296,91 @@ export async function setClientCredentials(
 
   return { success: true, email: clean, password: pass };
 }
+
+// Список выданных доступов (для управления: продлить/отменить)
+export async function listAccess() {
+  await assertAdmin();
+  const { data: acc, error } = await supabaseAdmin
+    .from("user_access")
+    .select("id, user_email, meditation_id, expires_at")
+    .order("expires_at", { ascending: true });
+  if (error) return { success: false, error: error.message, data: [] };
+  const { data: meds } = await supabaseAdmin
+    .from("meditations")
+    .select("id, title");
+  const titles: Record<string, string> = {};
+  (meds || []).forEach((m) => (titles[m.id] = m.title));
+  return {
+    success: true,
+    data: (acc || []).map((a) => ({
+      id: a.id,
+      user_email: a.user_email,
+      meditation: titles[a.meditation_id] || a.meditation_id,
+      expires_at: a.expires_at,
+    })),
+  };
+}
+
+// Продлить доступ на N дней (от текущей даты окончания, либо от сейчас)
+export async function extendAccess(accessId: string, days: number) {
+  await assertAdmin();
+  const n = Number(days);
+  if (!accessId || !Number.isFinite(n) || n <= 0) {
+    return { success: false, error: "Укажите срок в днях (> 0)" };
+  }
+  const { data: row } = await supabaseAdmin
+    .from("user_access")
+    .select("expires_at")
+    .eq("id", accessId)
+    .maybeSingle();
+  if (!row) return { success: false, error: "Доступ не найден" };
+
+  const now = Date.now();
+  const current = new Date(row.expires_at).getTime();
+  const base = current > now ? current : now;
+  const next = new Date(base + n * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error } = await supabaseAdmin
+    .from("user_access")
+    .update({ expires_at: next })
+    .eq("id", accessId);
+  if (error) return { success: false, error: error.message };
+  return { success: true, expires_at: next };
+}
+
+// Отменить доступ (удалить запись)
+export async function revokeAccess(accessId: string) {
+  await assertAdmin();
+  if (!accessId) return { success: false, error: "Не указан доступ" };
+  const { error } = await supabaseAdmin
+    .from("user_access")
+    .delete()
+    .eq("id", accessId);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+// Полностью удалить клиента: доступы, анкеты, запись в clients, аккаунт
+export async function deleteClient(email: string) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return { success: false, error: "Не указан email" };
+  if (ADMIN_EMAILS.includes(clean)) {
+    return { success: false, error: "Нельзя удалить админ-аккаунт" };
+  }
+
+  await supabaseAdmin.from("user_access").delete().eq("user_email", clean);
+  await supabaseAdmin
+    .from("questionnaires")
+    .delete()
+    .eq("client_email", clean);
+  await supabaseAdmin.from("clients").delete().eq("email", clean);
+
+  const list = await supabaseAdmin.auth.admin.listUsers();
+  const u = list.data?.users?.find(
+    (x) => x.email?.toLowerCase() === clean
+  );
+  if (u) await supabaseAdmin.auth.admin.deleteUser(u.id);
+
+  return { success: true };
+}

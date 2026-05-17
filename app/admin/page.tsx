@@ -32,6 +32,10 @@ import {
   grantAccess,
   generateClientLoginLink,
   setClientCredentials,
+  listAccess,
+  extendAccess,
+  revokeAccess,
+  deleteClient,
 } from "@/app/actions/admin";
 import { flatQuestions, getQuestionnaire } from "@/app/anketa/questions";
 
@@ -62,6 +66,12 @@ interface Questionnaire {
   answers: Record<string, string | string[]>;
   created_at: string;
 }
+interface AccessRow {
+  id: string;
+  user_email: string;
+  meditation: string;
+  expires_at: string;
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -70,6 +80,8 @@ export default function AdminPage() {
   const [meditations, setMeditations] = useState<Meditation[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
+  const [accesses, setAccesses] = useState<AccessRow[]>([]);
+  const [extendDays, setExtendDays] = useState<Record<string, string>>({});
   const [openQ, setOpenQ] = useState<string | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
@@ -198,6 +210,7 @@ export default function AdminPage() {
           loadMeditations(),
           loadClients(),
           loadQuestionnaires(),
+          loadAccesses(),
         ]);
       } catch (error) {
         console.error("Access check error:", error);
@@ -221,6 +234,44 @@ export default function AdminPage() {
   async function loadClients() {
     const res = await listClients();
     if (res.success) setClients(res.data as Client[]);
+  }
+  async function loadAccesses() {
+    const res = await listAccess();
+    if (res.success) setAccesses(res.data as AccessRow[]);
+  }
+
+  async function handleExtend(id: string) {
+    const days = Number(extendDays[id] || "30");
+    const res = await extendAccess(id, days);
+    if (res.success) {
+      await loadAccesses();
+    } else {
+      alert(res.error || "Ошибка");
+    }
+  }
+  async function handleRevoke(id: string, email: string) {
+    if (!confirm(`Отменить доступ для ${email}?`)) return;
+    const res = await revokeAccess(id);
+    if (res.success) await loadAccesses();
+    else alert(res.error || "Ошибка");
+  }
+  async function handleDeleteClient(email: string) {
+    if (
+      !confirm(
+        `Удалить клиента ${email}? Будут удалены: его доступы, анкеты и аккаунт. Необратимо.`
+      )
+    )
+      return;
+    const res = await deleteClient(email);
+    if (res.success) {
+      await Promise.all([
+        loadClients(),
+        loadAccesses(),
+        loadQuestionnaires(),
+      ]);
+    } else {
+      alert(res.error || "Ошибка");
+    }
   }
   async function loadQuestionnaires() {
     const res = await listQuestionnaires();
@@ -668,6 +719,7 @@ export default function AdminPage() {
                       <th className="px-6 py-4 text-left">Имя</th>
                       <th className="px-6 py-4 text-left">Активен</th>
                       <th className="px-6 py-4 text-left">Добавлен</th>
+                      <th className="px-6 py-4 text-left"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -687,6 +739,15 @@ export default function AdminPage() {
                         </td>
                         <td className="px-6 py-4 text-[#302012]/70">
                           {formatDate(c.created_at)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClient(c.email)}
+                            className="text-sm underline text-red-700 hover:opacity-70"
+                          >
+                            Удалить
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -760,6 +821,77 @@ export default function AdminPage() {
                   {isGranting ? "Выдача доступа..." : "Открыть доступ"}
                 </Button>
               </form>
+            </div>
+
+            <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden mt-6">
+              <div className="px-6 py-3 bg-[#302012] text-[#F5F3ED]">
+                Выданные доступы ({accesses.length})
+              </div>
+              {accesses.length === 0 ? (
+                <div className="p-6 text-center text-[#302012]/70">
+                  Доступы не выданы
+                </div>
+              ) : (
+                <ul className="divide-y divide-[#302012]/15">
+                  {accesses.map((a) => {
+                    const exp = new Date(a.expires_at);
+                    const active = exp.getTime() > Date.now();
+                    return (
+                      <li
+                        key={a.id}
+                        className="px-6 py-4 flex flex-col md:flex-row md:items-center gap-3 md:justify-between"
+                      >
+                        <div className="text-[#302012]">
+                          <p className="font-medium">{a.user_email}</p>
+                          <p className="text-sm text-[#302012]/60">
+                            {a.meditation} · до{" "}
+                            {exp.toLocaleDateString("ru-RU")}{" "}
+                            {active ? (
+                              <span className="text-green-700">
+                                (активен)
+                              </span>
+                            ) : (
+                              <span className="text-red-700">
+                                (истёк)
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            value={extendDays[a.id] ?? "30"}
+                            onChange={(e) =>
+                              setExtendDays((p) => ({
+                                ...p,
+                                [a.id]: e.target.value,
+                              }))
+                            }
+                            className={`${inputCls} w-20`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleExtend(a.id)}
+                            className="text-sm underline text-[#302012] hover:opacity-70"
+                          >
+                            Продлить (дней)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRevoke(a.id, a.user_email)
+                            }
+                            className="text-sm underline text-red-700 hover:opacity-70"
+                          >
+                            Отменить
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </TabsContent>
 
