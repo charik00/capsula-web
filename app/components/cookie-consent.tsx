@@ -26,20 +26,12 @@ export function CookieConsent() {
         </a>
         .
       </p>
-      <div className="flex gap-3">
-        <button
-          onClick={accept}
-          className="flex-1 px-4 py-2 bg-[#302012] text-[#F5F3ED] text-sm hover:bg-[#302012]/80 transition-all"
-        >
-          Принять все
-        </button>
-        <button
-          onClick={accept}
-          className="flex-1 px-4 py-2 border border-[#302012] text-[#302012] text-sm hover:bg-[#302012]/10 transition-all"
-        >
-          Только необходимые
-        </button>
-      </div>
+      <button
+        onClick={accept}
+        className="w-full px-4 py-2 bg-[#302012] text-[#F5F3ED] text-sm hover:bg-[#302012]/80 transition-all"
+      >
+        Принять все
+      </button>
     </div>
   );
 }
