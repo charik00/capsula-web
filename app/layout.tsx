@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { BookingProvider } from "./components/booking-provider";
+import { CookieConsent } from "@/app/components/cookie-consent";
 import { MobileNav } from "./components/mobile-nav";
 
 const geistSans = Geist({
@@ -51,6 +52,7 @@ export default function RootLayout({
         <BookingProvider>
           {children}
           <MobileNav />
+          <CookieConsent />
         </BookingProvider>
         <Script
           src="https://cdn.userway.org/widget.js"
