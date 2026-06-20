@@ -33,18 +33,43 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateTime = () => {
+      setCurrentTime(audio.currentTime);
+      // Позиция на экране блокировки (прогресс-бар системного плеера)
+      if (
+        "mediaSession" in navigator &&
+        navigator.mediaSession.setPositionState &&
+        audio.duration &&
+        isFinite(audio.duration)
+      ) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration,
+            position: audio.currentTime,
+            playbackRate: audio.playbackRate || 1,
+          });
+        } catch {}
+      }
+    };
     const updateDuration = () => setDuration(audio.duration);
     const handleEnded = () => {
       setIsPlaying(false);
       setIsBuffering(false);
+      if ("mediaSession" in navigator)
+        navigator.mediaSession.playbackState = "none";
     };
     const handleWaiting = () => setIsBuffering(true);
     const handlePlaying = () => {
       setIsBuffering(false);
       setIsPlaying(true);
+      if ("mediaSession" in navigator)
+        navigator.mediaSession.playbackState = "playing";
     };
-    const handlePause = () => setIsPlaying(false);
+    const handlePause = () => {
+      setIsPlaying(false);
+      if ("mediaSession" in navigator)
+        navigator.mediaSession.playbackState = "paused";
+    };
     const handleCanPlay = () => setIsBuffering(false);
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("loadedmetadata", updateDuration);
@@ -102,6 +127,59 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
     }
   };
 
+  // Media Session: фоновое воспроизведение при погасшем экране +
+  // управление с экрана блокировки (название, обложка, play/pause,
+  // перемотка ±10 сек). Вызываем при старте — iOS требует, чтобы это
+  // происходило в рамках пользовательского запуска воспроизведения.
+  const setupMediaSession = () => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: "Капсула",
+      album: "Медитация",
+      artwork: [
+        {
+          src: "/meditation-cover.png",
+          sizes: "512x512",
+          type: "image/png",
+        },
+      ],
+    });
+
+    const move = (delta: number) => {
+      audio.currentTime = Math.max(
+        0,
+        Math.min(audio.duration || 0, audio.currentTime + delta)
+      );
+      setCurrentTime(audio.currentTime);
+    };
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      audio.play().catch(() => {});
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      audio.pause();
+    });
+    navigator.mediaSession.setActionHandler("seekbackward", (d) =>
+      move(-(d.seekOffset || 10))
+    );
+    navigator.mediaSession.setActionHandler("seekforward", (d) =>
+      move(d.seekOffset || 10)
+    );
+    try {
+      navigator.mediaSession.setActionHandler("seekto", (d) => {
+        if (d.seekTime != null) {
+          audio.currentTime = d.seekTime;
+          setCurrentTime(d.seekTime);
+        }
+      });
+    } catch {}
+  };
+
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -119,6 +197,7 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
     try {
       await audio.play();
       setIsPlaying(true);
+      setupMediaSession();
       // буферизация снимется по событию "playing"
     } catch {
       setIsBuffering(false);
