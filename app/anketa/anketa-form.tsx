@@ -14,24 +14,10 @@ import { Label } from "@/app/components/ui/label";
 
 type AnswerValue = string | string[];
 
-// Необязательные вопросы: «другое» (доп. поля), помеченные «по желанию»
-// и метафорические/неоднозначные. Всё остальное — обязательно.
-const OPTIONAL_IDS = new Set<string>([
-  "triggers_other",
-  "benefit_other",
-  "hard_emotions_other",
-  "food_triggers_other",
-  "trigger_foods_other",
-  "eating_emotions_other",
-  "env_factors_other",
-  "medications",
-  "cigarette_voice",
-  "craving_voice",
-  "quit_attempts",
-  "past_attempts",
-]);
-
-const isRequired = (id: string) => !OPTIONAL_IDS.has(id);
+// Обязателен только тот вопрос, что помечен required в questions.ts
+// (имя, возраст, пара ключевых и финальный). Остальное — по желанию,
+// чтобы анкета реально отправлялась, а не упиралась в вес/талию и т.п.
+const isRequired = (q: Question) => q.required === true;
 
 export function AnketaForm() {
   const [program, setProgram] = useState<string>("");
@@ -99,7 +85,7 @@ export function AnketaForm() {
     }
     for (const section of questionnaire.sections) {
       for (const q of section.questions) {
-        if (isRequired(q.id) && isEmpty(answers[q.id])) {
+        if (isRequired(q) && isEmpty(answers[q.id])) {
           fail(
             `Не заполнен обязательный вопрос: «${q.label}» (раздел «${section.title}»)`
           );
@@ -152,7 +138,7 @@ export function AnketaForm() {
     <div key={q.id} className="space-y-2">
       <Label className="text-[#302012] leading-snug">
         {q.label}
-        {isRequired(q.id) ? " *" : ""}
+        {isRequired(q) ? " *" : ""}
       </Label>
       {q.hint && (
         <p className="text-xs text-[#302012]/50 italic">{q.hint}</p>

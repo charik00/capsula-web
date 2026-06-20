@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const SIGNED_URL_TTL_SECONDS = 2 * 60 * 60; // 2 часа
-
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -48,7 +46,7 @@ export async function GET(
     );
   }
 
-  // 4. Путь к файлу
+  // 4. Путь к файлу — проверяем, что медитация существует
   const { data: meditation } = await supabaseAdmin
     .from("meditations")
     .select("audio_url")
@@ -59,25 +57,11 @@ export async function GET(
     return NextResponse.json({ error: "Медитация не найдена" }, { status: 404 });
   }
 
-  // Легаси: если в БД лежит полный публичный URL — отдаём как есть.
-  if (/^https?:\/\//i.test(meditation.audio_url)) {
-    return NextResponse.json({ url: meditation.audio_url });
-  }
-
-  // Новый приватный путь в бакете media -> короткая подписанная ссылка
-  const { data: signed, error } = await supabaseAdmin.storage
-    .from("media")
-    .createSignedUrl(meditation.audio_url, SIGNED_URL_TTL_SECONDS);
-
-  if (error || !signed) {
-    return NextResponse.json(
-      { error: "Не удалось сформировать ссылку" },
-      { status: 500 }
-    );
-  }
-
+  // Отдаём ссылку на стрим ЧЕРЕЗ наш домен, а не прямой URL supabase.co.
+  // Так файл для браузера «свой» — его не блокируют блокировщики/приватные
+  // браузеры, и работают range-запросы (перемотка на iPhone).
   return NextResponse.json(
-    { url: signed.signedUrl },
+    { url: `/api/meditation/${id}/stream` },
     { headers: { "Cache-Control": "no-store" } }
   );
 }
