@@ -392,7 +392,7 @@ export async function getClientCard(email: string) {
   const clean = (email || "").trim().toLowerCase();
   if (!clean) return { success: false, error: "Не указан email" };
 
-  const [q, acc, meds, notes, files] = await Promise.all([
+  const [q, acc, meds, notes, files, listens] = await Promise.all([
     supabaseAdmin
       .from("questionnaires")
       .select("id, program, contact, answers, created_at")
@@ -414,10 +414,36 @@ export async function getClientCard(email: string) {
       .select("id, title, kind, created_at")
       .eq("client_email", clean)
       .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("listen_events")
+      .select("meditation_id, kind, created_at")
+      .eq("user_email", clean),
   ]);
 
   const titles: Record<string, string> = {};
   (meds.data || []).forEach((m) => (titles[m.id] = m.title));
+
+  // Сводка прослушиваний по каждой медитации
+  const byMed: Record<
+    string,
+    { meditation: string; plays: number; completes: number; last: string | null }
+  > = {};
+  (listens.data || []).forEach((e) => {
+    const row =
+      byMed[e.meditation_id] ||
+      (byMed[e.meditation_id] = {
+        meditation: titles[e.meditation_id] || e.meditation_id,
+        plays: 0,
+        completes: 0,
+        last: null,
+      });
+    if (e.kind === "complete") row.completes += 1;
+    else row.plays += 1;
+    if (!row.last || e.created_at > row.last) row.last = e.created_at;
+  });
+  const listenStats = Object.values(byMed).sort((a, b) =>
+    (b.last || "").localeCompare(a.last || "")
+  );
 
   return {
     success: true,
@@ -428,6 +454,7 @@ export async function getClientCard(email: string) {
         meditation: titles[a.meditation_id] || a.meditation_id,
         expires_at: a.expires_at,
       })),
+      listens: listenStats,
       notes: notes.data || [],
       files: files.data || [],
     },

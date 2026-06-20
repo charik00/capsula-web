@@ -101,6 +101,21 @@ create policy "clients self select" on public.clients
 -- meditations / user_access / questionnaires: политик НЕ создаём —
 -- доступ только через service_role (серверные экшены и API-роут).
 
+-- ============================================================
+-- 8. Прослушивания медитаций (для админки: видеть, что реально слушают)
+-- ============================================================
+create table if not exists public.listen_events (
+  id uuid primary key default gen_random_uuid(),
+  user_email text not null,
+  meditation_id uuid not null references public.meditations(id) on delete cascade,
+  kind text not null default 'play',  -- 'play' = начал слушать; 'complete' = дослушал до конца
+  created_at timestamptz not null default now()
+);
+create index if not exists listen_events_user_med_idx
+  on public.listen_events (user_email, meditation_id);
+alter table public.listen_events enable row level security;
+-- политик нет: запись и чтение только через service_role (серверный код)
+
 -- 6. Приватный бакет для медитаций/документов
 insert into storage.buckets (id, name, public)
 values ('media', 'media', false)

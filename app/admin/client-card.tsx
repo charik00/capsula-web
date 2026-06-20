@@ -26,6 +26,12 @@ interface Card {
     created_at: string;
   }[];
   accesses: { id: string; meditation: string; expires_at: string }[];
+  listens: {
+    meditation: string;
+    plays: number;
+    completes: number;
+    last: string | null;
+  }[];
   notes: { id: string; body: string; created_at: string }[];
   files: { id: string; title: string; kind: string; created_at: string }[];
 }
@@ -261,6 +267,39 @@ export function ClientCard({ email }: { email: string }) {
                 </li>
               );
             })}
+          </ul>
+        )}
+      </section>
+
+      {/* Прослушивания */}
+      <section>
+        <h3 className="text-lg font-medium text-[#302012] mb-3">
+          Прослушивания медитаций
+        </h3>
+        {card.listens.length === 0 ? (
+          <p className="text-[#302012]/60 text-sm">Пока не слушали</p>
+        ) : (
+          <ul className="space-y-2">
+            {card.listens.map((l) => (
+              <li
+                key={l.meditation}
+                className="bg-white border border-[#302012]/30 rounded p-3"
+              >
+                <p className="text-[#302012] text-sm">
+                  <b>{l.meditation}</b>
+                </p>
+                <p className="text-[#302012]/70 text-sm mt-1">
+                  Прослушиваний: <b>{l.plays}</b> · дослушал до конца:{" "}
+                  <b>{l.completes}</b>
+                  {l.last ? (
+                    <span className="text-[#302012]/50">
+                      {" "}
+                      · последний раз: {fmtDate(l.last)}
+                    </span>
+                  ) : null}
+                </p>
+              </li>
+            ))}
           </ul>
         )}
       </section>

@@ -29,6 +29,19 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
   const [isBuffering, setIsBuffering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const srcLoadedRef = useRef(false);
+  const playLoggedRef = useRef(false);
+
+  // Лог прослушивания для админки: 'play' — начал, 'complete' — дослушал.
+  const logEvent = (kind: "play" | "complete") => {
+    try {
+      const url = `/api/meditation/${meditationId}/event?kind=${kind}`;
+      if (kind === "complete" && typeof navigator.sendBeacon === "function") {
+        navigator.sendBeacon(url);
+      } else {
+        fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -55,6 +68,7 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
     const handleEnded = () => {
       setIsPlaying(false);
       setIsBuffering(false);
+      logEvent("complete");
       if ("mediaSession" in navigator)
         navigator.mediaSession.playbackState = "none";
     };
@@ -198,6 +212,11 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
       await audio.play();
       setIsPlaying(true);
       setupMediaSession();
+      // Считаем одно прослушивание на открытие плеера (не на каждый resume)
+      if (!playLoggedRef.current) {
+        playLoggedRef.current = true;
+        logEvent("play");
+      }
       // буферизация снимется по событию "playing"
     } catch {
       setIsBuffering(false);
