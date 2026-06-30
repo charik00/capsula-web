@@ -9,6 +9,7 @@ import {
   deleteClientNote,
   createClientFileUpload,
   saveClientFile,
+  saveClientLink,
   deleteClientFile,
   extendAccess,
   revokeAccess,
@@ -33,7 +34,13 @@ interface Card {
     last: string | null;
   }[];
   notes: { id: string; body: string; created_at: string }[];
-  files: { id: string; title: string; kind: string; created_at: string }[];
+  files: {
+    id: string;
+    title: string;
+    kind: string;
+    url: string | null;
+    created_at: string;
+  }[];
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -41,6 +48,9 @@ const KIND_LABELS: Record<string, string> = {
   diet: "Диета",
   instruction: "Инструкция",
   document: "Документ",
+  pdf: "PDF",
+  video: "Видео",
+  link: "Ссылка",
 };
 
 const inputCls = "bg-white border-[#302012] text-[#302012] text-base";
@@ -52,6 +62,7 @@ export function ClientCard({ email }: { email: string }) {
   const [fileTitle, setFileTitle] = useState("");
   const [fileKind, setFileKind] = useState("diet");
   const [fileObj, setFileObj] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [extDays, setExtDays] = useState<Record<string, string>>({});
 
@@ -93,6 +104,29 @@ export function ClientCard({ email }: { email: string }) {
 
   async function handleUploadFile(e: React.FormEvent) {
     e.preventDefault();
+
+    // Ссылка — без файла, сохраняем url
+    if (fileKind === "link") {
+      if (!fileTitle.trim() || !fileUrl.trim()) {
+        alert("Укажите название и ссылку");
+        return;
+      }
+      setBusy(true);
+      try {
+        const res = await saveClientLink(email, fileTitle, fileUrl);
+        if (res.success) {
+          setFileTitle("");
+          setFileUrl("");
+          await load();
+        } else alert(res.error || "Ошибка");
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Ошибка");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     if (!fileTitle.trim() || !fileObj) {
       alert("Укажите название и выберите файл");
       return;
@@ -327,19 +361,36 @@ export function ClientCard({ email }: { email: string }) {
             <option value="diet">Диета</option>
             <option value="instruction">Инструкция</option>
             <option value="document">Документ</option>
+            <option value="pdf">PDF</option>
+            <option value="video">Видео</option>
             <option value="meditation">Медитация</option>
+            <option value="link">Ссылка</option>
           </select>
-          <Input
-            type="file"
-            onChange={(e) => setFileObj(e.target.files?.[0] || null)}
-            className={inputCls}
-          />
+          {fileKind === "link" ? (
+            <Input
+              type="url"
+              value={fileUrl}
+              onChange={(e) => setFileUrl(e.target.value)}
+              className={inputCls}
+              placeholder="https://… (ссылка на видео, статью и т.п.)"
+            />
+          ) : (
+            <Input
+              type="file"
+              onChange={(e) => setFileObj(e.target.files?.[0] || null)}
+              className={inputCls}
+            />
+          )}
           <Button
             type="submit"
             disabled={busy}
             className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
           >
-            {busy ? "Загрузка…" : "Загрузить файл"}
+            {busy
+              ? "Сохранение…"
+              : fileKind === "link"
+              ? "Добавить ссылку"
+              : "Загрузить файл"}
           </Button>
         </form>
         {card.files.length === 0 ? (
@@ -356,6 +407,19 @@ export function ClientCard({ email }: { email: string }) {
                   <span className="text-[#302012]/50">
                     · {fmtDate(f.created_at)}
                   </span>
+                  {f.kind === "link" && f.url ? (
+                    <>
+                      <br />
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#302012]/70 underline break-all"
+                      >
+                        {f.url}
+                      </a>
+                    </>
+                  ) : null}
                 </span>
                 <button
                   type="button"

@@ -411,7 +411,7 @@ export async function getClientCard(email: string) {
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("client_files")
-      .select("id, title, kind, created_at")
+      .select("id, title, kind, url, created_at")
       .eq("client_email", clean)
       .order("created_at", { ascending: false }),
     supabaseAdmin
@@ -527,6 +527,31 @@ export async function saveClientFile(
       kind: kind || "document",
       path,
     },
+  ]);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+// Материал-ссылка (без файла): kind='link', хранится url
+export async function saveClientLink(
+  email: string,
+  title: string,
+  url: string
+) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  const link = (url || "").trim();
+  if (!clean || !title.trim() || !link) {
+    return { success: false, error: "Укажите название и ссылку" };
+  }
+  if (!/^https?:\/\//i.test(link)) {
+    return {
+      success: false,
+      error: "Ссылка должна начинаться с http:// или https://",
+    };
+  }
+  const { error } = await supabaseAdmin.from("client_files").insert([
+    { client_email: clean, title: title.trim(), kind: "link", url: link },
   ]);
   if (error) return { success: false, error: error.message };
   return { success: true };

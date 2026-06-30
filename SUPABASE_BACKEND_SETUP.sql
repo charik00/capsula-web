@@ -69,6 +69,10 @@ create table if not exists public.client_files (
   path text not null,
   created_at timestamptz not null default now()
 );
+-- материал может быть ссылкой (kind='link': url вместо файла) или видео.
+-- поэтому url добавляем, а path делаем необязательным.
+alter table public.client_files add column if not exists url text;
+alter table public.client_files alter column path drop not null;
 
 alter table public.client_notes enable row level security;
 alter table public.client_files enable row level security;

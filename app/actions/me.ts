@@ -56,6 +56,7 @@ export interface MyFile {
   id: string;
   title: string;
   kind: string;
+  url: string | null;
   created_at: string;
 }
 
@@ -77,7 +78,7 @@ export async function getMyMaterials(): Promise<MyFile[]> {
 
   const { data } = await supabaseAdmin
     .from("client_files")
-    .select("id, title, kind, created_at")
+    .select("id, title, kind, url, created_at")
     .eq("client_email", email)
     .order("created_at", { ascending: false });
 
