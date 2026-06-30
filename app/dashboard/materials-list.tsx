@@ -63,6 +63,13 @@ export function MaterialsList() {
     }
   };
 
+  const closeVideo = (id: string) =>
+    setVideoUrls((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
+
   if (loading || files.length === 0) return null;
 
   return (
@@ -77,9 +84,19 @@ export function MaterialsList() {
                 key={f.id}
                 className="bg-white border-2 border-[#302012] p-4 rounded-lg"
               >
-                <div className="text-[#302012] mb-2">
-                  <span className="text-sm text-[#302012]/60">Видео</span>
-                  <p className="font-medium">{f.title}</p>
+                <div className="flex items-start justify-between mb-2 gap-2">
+                  <div className="text-[#302012]">
+                    <span className="text-sm text-[#302012]/60">Видео</span>
+                    <p className="font-medium">{f.title}</p>
+                  </div>
+                  <button
+                    onClick={() => closeVideo(f.id)}
+                    aria-label="Закрыть видео"
+                    title="Закрыть"
+                    className="text-[#302012] hover:bg-[#302012]/10 rounded-full w-8 h-8 flex items-center justify-center shrink-0 text-xl leading-none"
+                  >
+                    ✕
+                  </button>
                 </div>
                 <video
                   src={videoUrls[f.id]}
