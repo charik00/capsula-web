@@ -88,7 +88,7 @@ export function MaterialsList() {
                   playsInline
                   controlsList="nodownload"
                   onContextMenu={(e) => e.preventDefault()}
-                  className="w-full rounded select-none"
+                  className="block mx-auto max-h-[70vh] max-w-full rounded select-none"
                 />
               </div>
             );
