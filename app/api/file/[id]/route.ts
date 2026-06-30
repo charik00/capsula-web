@@ -30,12 +30,19 @@ export async function GET(
 
   const { data: file } = await supabaseAdmin
     .from("client_files")
-    .select("path, client_email")
+    .select("path, client_email, expires_at")
     .eq("id", id)
     .maybeSingle();
 
   if (!file || file.client_email.toLowerCase() !== email) {
     return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+  }
+
+  if (file.expires_at && new Date(file.expires_at) < new Date()) {
+    return NextResponse.json(
+      { error: "Срок доступа к материалу истёк" },
+      { status: 403 }
+    );
   }
 
   const { data: signed, error } = await supabaseAdmin.storage

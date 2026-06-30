@@ -76,10 +76,12 @@ export async function getMyMaterials(): Promise<MyFile[]> {
     .maybeSingle();
   if (!client || !client.is_active) return [];
 
+  const nowIso = new Date().toISOString();
   const { data } = await supabaseAdmin
     .from("client_files")
     .select("id, title, kind, url, created_at")
     .eq("client_email", email)
+    .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
     .order("created_at", { ascending: false });
 
   return (data || []) as MyFile[];

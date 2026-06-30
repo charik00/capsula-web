@@ -11,6 +11,7 @@ import {
   saveClientFile,
   saveClientLink,
   deleteClientFile,
+  setMaterialExpiry,
   extendAccess,
   revokeAccess,
 } from "@/app/actions/admin";
@@ -39,6 +40,7 @@ interface Card {
     title: string;
     kind: string;
     url: string | null;
+    expires_at: string | null;
     created_at: string;
   }[];
 }
@@ -63,6 +65,8 @@ export function ClientCard({ email }: { email: string }) {
   const [fileKind, setFileKind] = useState("diet");
   const [fileObj, setFileObj] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState("");
+  const [fileDays, setFileDays] = useState("");
+  const [matDays, setMatDays] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [extDays, setExtDays] = useState<Record<string, string>>({});
 
@@ -113,10 +117,16 @@ export function ClientCard({ email }: { email: string }) {
       }
       setBusy(true);
       try {
-        const res = await saveClientLink(email, fileTitle, fileUrl);
+        const res = await saveClientLink(
+          email,
+          fileTitle,
+          fileUrl,
+          fileDays ? Number(fileDays) : undefined
+        );
         if (res.success) {
           setFileTitle("");
           setFileUrl("");
+          setFileDays("");
           await load();
         } else alert(res.error || "Ошибка");
       } catch (e) {
@@ -149,11 +159,13 @@ export function ClientCard({ email }: { email: string }) {
         email,
         fileTitle,
         fileKind,
-        prep.path
+        prep.path,
+        fileDays ? Number(fileDays) : undefined
       );
       if (saved.success) {
         setFileTitle("");
         setFileObj(null);
+        setFileDays("");
         await load();
       } else alert(saved.error || "Ошибка сохранения");
     } catch (e) {
@@ -166,6 +178,12 @@ export function ClientCard({ email }: { email: string }) {
   async function handleExtend(id: string) {
     const d = Number(extDays[id] || "30");
     const res = await extendAccess(id, d);
+    if (res.success) await load();
+    else alert(res.error || "Ошибка");
+  }
+
+  async function handleSetMatExpiry(id: string, days?: number) {
+    const res = await setMaterialExpiry(id, days);
     if (res.success) await load();
     else alert(res.error || "Ошибка");
   }
@@ -381,6 +399,14 @@ export function ClientCard({ email }: { email: string }) {
               className={inputCls}
             />
           )}
+          <Input
+            type="number"
+            min={1}
+            value={fileDays}
+            onChange={(e) => setFileDays(e.target.value)}
+            className={inputCls}
+            placeholder="Срок в днях (пусто = бессрочно)"
+          />
           <Button
             type="submit"
             disabled={busy}
@@ -400,7 +426,7 @@ export function ClientCard({ email }: { email: string }) {
             {card.files.map((f) => (
               <li
                 key={f.id}
-                className="bg-white border border-[#302012]/30 rounded p-3 flex items-center justify-between gap-3"
+                className="bg-white border border-[#302012]/30 rounded p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
                 <span className="text-[#302012] text-sm">
                   <b>{KIND_LABELS[f.kind] || f.kind}:</b> {f.title}{" "}
@@ -420,19 +446,68 @@ export function ClientCard({ email }: { email: string }) {
                       </a>
                     </>
                   ) : null}
+                  <br />
+                  {f.expires_at ? (
+                    new Date(f.expires_at).getTime() > Date.now() ? (
+                      <span className="text-green-700 text-xs">
+                        доступ до{" "}
+                        {new Date(f.expires_at).toLocaleDateString("ru-RU")}
+                      </span>
+                    ) : (
+                      <span className="text-red-700 text-xs">
+                        срок истёк (
+                        {new Date(f.expires_at).toLocaleDateString("ru-RU")})
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-[#302012]/50 text-xs">бессрочно</span>
+                  )}
                 </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!confirm(`Удалить «${f.title}»?`)) return;
-                    const r = await deleteClientFile(f.id);
-                    if (r.success) await load();
-                    else alert(r.error || "Ошибка");
-                  }}
-                  className="text-sm underline text-red-700 shrink-0"
-                >
-                  Удалить
-                </button>
+                <span className="flex items-center gap-2 shrink-0">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={matDays[f.id] ?? ""}
+                    onChange={(e) =>
+                      setMatDays((p) => ({ ...p, [f.id]: e.target.value }))
+                    }
+                    className={`${inputCls} w-20`}
+                    placeholder="дней"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = Number(matDays[f.id]);
+                      if (!d || d <= 0) {
+                        alert("Укажите число дней");
+                        return;
+                      }
+                      handleSetMatExpiry(f.id, d);
+                    }}
+                    className="text-sm underline text-[#302012]"
+                  >
+                    Срок
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetMatExpiry(f.id)}
+                    className="text-sm underline text-[#302012]/70"
+                  >
+                    Бессрочно
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`Удалить «${f.title}»?`)) return;
+                      const r = await deleteClientFile(f.id);
+                      if (r.success) await load();
+                      else alert(r.error || "Ошибка");
+                    }}
+                    className="text-sm underline text-red-700"
+                  >
+                    Удалить
+                  </button>
+                </span>
               </li>
             ))}
           </ul>

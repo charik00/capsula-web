@@ -411,7 +411,7 @@ export async function getClientCard(email: string) {
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("client_files")
-      .select("id, title, kind, url, created_at")
+      .select("id, title, kind, url, expires_at, created_at")
       .eq("client_email", clean)
       .order("created_at", { ascending: false }),
     supabaseAdmin
@@ -509,11 +509,19 @@ export async function createClientFileUpload(
   return { success: true, path, token: data.token };
 }
 
+// Срок доступа: число дней -> дата истечения; пусто/0 -> бессрочно (null)
+function daysToExpiry(days?: number): string | null {
+  const n = Number(days);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export async function saveClientFile(
   email: string,
   title: string,
   kind: string,
-  path: string
+  path: string,
+  days?: number
 ) {
   await assertAdmin();
   const clean = (email || "").trim().toLowerCase();
@@ -526,6 +534,7 @@ export async function saveClientFile(
       title: title.trim(),
       kind: kind || "document",
       path,
+      expires_at: daysToExpiry(days),
     },
   ]);
   if (error) return { success: false, error: error.message };
@@ -536,7 +545,8 @@ export async function saveClientFile(
 export async function saveClientLink(
   email: string,
   title: string,
-  url: string
+  url: string,
+  days?: number
 ) {
   await assertAdmin();
   const clean = (email || "").trim().toLowerCase();
@@ -551,7 +561,13 @@ export async function saveClientLink(
     };
   }
   const { error } = await supabaseAdmin.from("client_files").insert([
-    { client_email: clean, title: title.trim(), kind: "link", url: link },
+    {
+      client_email: clean,
+      title: title.trim(),
+      kind: "link",
+      url: link,
+      expires_at: daysToExpiry(days),
+    },
   ]);
   if (error) return { success: false, error: error.message };
   return { success: true };
@@ -571,5 +587,18 @@ export async function deleteClientFile(id: string) {
     .eq("id", id);
   if (error) return { success: false, error: error.message };
   if (f?.path) await supabaseAdmin.storage.from("media").remove([f.path]);
+  return { success: true };
+}
+
+// Изменить срок доступа к материалу: days>0 — продлить от сейчас на N дней,
+// пусто/0 — сделать бессрочным (null).
+export async function setMaterialExpiry(id: string, days?: number) {
+  await assertAdmin();
+  if (!id) return { success: false, error: "Нет id" };
+  const { error } = await supabaseAdmin
+    .from("client_files")
+    .update({ expires_at: daysToExpiry(days) })
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
   return { success: true };
 }

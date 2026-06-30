@@ -73,6 +73,8 @@ create table if not exists public.client_files (
 -- поэтому url добавляем, а path делаем необязательным.
 alter table public.client_files add column if not exists url text;
 alter table public.client_files alter column path drop not null;
+-- срок доступа к материалу: null = бессрочно, иначе скрывается после даты
+alter table public.client_files add column if not exists expires_at timestamptz;
 
 alter table public.client_notes enable row level security;
 alter table public.client_files enable row level security;
