@@ -3,6 +3,42 @@
 import { useEffect, useState } from "react";
 import { getMyMaterials, type MyFile } from "@/app/actions/me";
 
+// Ссылка на YouTube/Vimeo -> адрес для встраивания плеером (iframe).
+// Возвращает null, если это обычная ссылка (не видеохостинг).
+function embedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = u.pathname.slice(1);
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host.endsWith("youtube.com")) {
+      const list = u.searchParams.get("list");
+      if (u.pathname.startsWith("/embed/")) return url;
+      if (u.pathname.startsWith("/shorts/")) {
+        const id = u.pathname.split("/")[2];
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      const v = u.searchParams.get("v");
+      if (v)
+        return `https://www.youtube.com/embed/${v}${
+          list ? `?list=${list}` : ""
+        }`;
+      if (list)
+        return `https://www.youtube.com/embed/videoseries?list=${list}`;
+      return null;
+    }
+    if (host.endsWith("vimeo.com")) {
+      const m = u.pathname.match(/\/(\d+)/);
+      return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const KIND_LABELS: Record<string, string> = {
   meditation: "Медитация",
   diet: "Диета",
@@ -109,6 +145,35 @@ export function MaterialsList() {
                 />
               </div>
             );
+          }
+
+          // Ссылка на YouTube/Vimeo — встроенный плеер (обложка + плей)
+          if (f.kind === "link" && f.url) {
+            const embed = embedUrl(f.url);
+            if (embed) {
+              return (
+                <div
+                  key={f.id}
+                  className="bg-white border-2 border-[#302012] p-4 rounded-lg"
+                >
+                  <div className="text-[#302012] mb-2">
+                    <span className="text-sm text-[#302012]/60">Видео</span>
+                    <p className="font-medium">{f.title}</p>
+                  </div>
+                  <div className="max-w-2xl mx-auto">
+                    <div className="relative w-full aspect-video rounded overflow-hidden bg-black">
+                      <iframe
+                        src={embed}
+                        title={f.title}
+                        className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            }
           }
 
           return (
