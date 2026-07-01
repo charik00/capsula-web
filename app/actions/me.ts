@@ -76,12 +76,21 @@ export async function getMyMaterials(): Promise<MyFile[]> {
     .maybeSingle();
   if (!client || !client.is_active) return [];
 
+  // Материалы, выданные этому клиенту (доступ не истёк)
   const nowIso = new Date().toISOString();
+  const { data: grants } = await supabaseAdmin
+    .from("material_access")
+    .select("material_id")
+    .eq("user_email", email)
+    .or(`expires_at.is.null,expires_at.gte.${nowIso}`);
+
+  const ids = (grants || []).map((g) => g.material_id);
+  if (ids.length === 0) return [];
+
   const { data } = await supabaseAdmin
-    .from("client_files")
+    .from("materials")
     .select("id, title, kind, url, created_at")
-    .eq("client_email", email)
-    .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
+    .in("id", ids)
     .order("created_at", { ascending: false });
 
   return (data || []) as MyFile[];

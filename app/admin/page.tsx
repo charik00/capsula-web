@@ -36,6 +36,11 @@ import {
   extendAccess,
   revokeAccess,
   deleteClient,
+  listMaterials,
+  createMaterialUpload,
+  saveMaterial,
+  saveMaterialLink,
+  deleteMaterial,
 } from "@/app/actions/admin";
 import { ClientCard } from "./client-card";
 import { flatQuestions, getQuestionnaire } from "@/app/anketa/questions";
@@ -94,6 +99,18 @@ export default function AdminPage() {
     title: "",
     description: "",
     audioFile: null as File | null,
+  });
+
+  // Библиотека материалов (видео/pdf/документы/ссылки)
+  const [materials, setMaterials] = useState<
+    { id: string; title: string; kind: string; url: string | null }[]
+  >([]);
+  const [isUploadingMat, setIsUploadingMat] = useState(false);
+  const [matForm, setMatForm] = useState({
+    title: "",
+    kind: "video",
+    file: null as File | null,
+    url: "",
   });
   const [accessForm, setAccessForm] = useState({
     userEmail: "",
@@ -213,6 +230,7 @@ export default function AdminPage() {
           loadClients(),
           loadQuestionnaires(),
           loadAccesses(),
+          loadMaterials(),
         ]);
       } catch (error) {
         console.error("Access check error:", error);
@@ -232,6 +250,77 @@ export default function AdminPage() {
   async function loadMeditations() {
     const res = await listMeditations();
     if (res.success) setMeditations(res.data as Meditation[]);
+  }
+  async function loadMaterials() {
+    const res = await listMaterials();
+    if (res.success)
+      setMaterials(
+        res.data as {
+          id: string;
+          title: string;
+          kind: string;
+          url: string | null;
+        }[]
+      );
+  }
+
+  async function handleSaveMaterial(e: React.FormEvent) {
+    e.preventDefault();
+    if (!matForm.title.trim()) {
+      alert("Укажите название");
+      return;
+    }
+    setIsUploadingMat(true);
+    try {
+      if (matForm.kind === "link") {
+        if (!matForm.url.trim()) {
+          alert("Укажите ссылку");
+          return;
+        }
+        const res = await saveMaterialLink(matForm.title, matForm.url);
+        if (!res.success) {
+          alert(res.error || "Ошибка");
+          return;
+        }
+      } else {
+        if (!matForm.file) {
+          alert("Выберите файл");
+          return;
+        }
+        const prep = await createMaterialUpload(matForm.file.name);
+        if (!prep.success || !prep.path || !prep.token) {
+          alert(prep.error || "Не удалось подготовить загрузку");
+          return;
+        }
+        const up = await supabase.storage
+          .from("media")
+          .uploadToSignedUrl(prep.path, prep.token, matForm.file, {
+            contentType: matForm.file.type || "application/octet-stream",
+          });
+        if (up.error) {
+          alert("Ошибка загрузки файла: " + up.error.message);
+          return;
+        }
+        const res = await saveMaterial(matForm.title, matForm.kind, prep.path);
+        if (!res.success) {
+          alert(res.error || "Ошибка");
+          return;
+        }
+      }
+      setMatForm({ title: "", kind: "video", file: null, url: "" });
+      await loadMaterials();
+    } catch (err) {
+      alert("Ошибка: " + (err instanceof Error ? err.message : "неизвестная"));
+    } finally {
+      setIsUploadingMat(false);
+    }
+  }
+
+  async function handleDeleteMaterial(id: string, title: string) {
+    if (!confirm(`Удалить материал «${title}» из библиотеки?`)) return;
+    const res = await deleteMaterial(id);
+    if (res.success) await loadMaterials();
+    else alert(res.error || "Ошибка");
   }
   async function loadClients() {
     const res = await listClients();
@@ -402,7 +491,7 @@ export default function AdminPage() {
         </h1>
 
         <Tabs defaultValue="ankety" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white border-2 border-[#302012]">
+          <TabsList className="grid w-full grid-cols-6 bg-white border-2 border-[#302012]">
             <TabsTrigger value="ankety" className="text-[#302012]">
               Анкеты
             </TabsTrigger>
@@ -414,6 +503,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="upload" className="text-[#302012]">
               Медитация
+            </TabsTrigger>
+            <TabsTrigger value="materials" className="text-[#302012]">
+              Материалы
             </TabsTrigger>
             <TabsTrigger value="leads" className="text-[#302012]">
               Заявки
@@ -1051,6 +1143,130 @@ export default function AdminPage() {
                           </div>
                         </div>
                       )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Материалы (библиотека) */}
+          <TabsContent value="materials" className="mt-6">
+            <div className="bg-white border-2 border-[#302012] p-8 rounded-lg">
+              <p className="text-sm text-[#302012]/60 mb-4">
+                Загрузите материал один раз — потом выдавайте его клиентам
+                галочками в карточке клиента (вкладка «Клиенты»).
+              </p>
+              <form onSubmit={handleSaveMaterial} className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-[#302012]">Название *</Label>
+                  <Input
+                    type="text"
+                    required
+                    value={matForm.title}
+                    onChange={(e) =>
+                      setMatForm({ ...matForm, title: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Например: Дыхательная практика"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[#302012]">Тип</Label>
+                  <select
+                    value={matForm.kind}
+                    onChange={(e) =>
+                      setMatForm({ ...matForm, kind: e.target.value })
+                    }
+                    className="w-full bg-white border border-[#302012] text-[#302012] rounded px-3 py-2 text-base"
+                  >
+                    <option value="video">Видео</option>
+                    <option value="pdf">PDF</option>
+                    <option value="document">Документ</option>
+                    <option value="link">Ссылка</option>
+                  </select>
+                </div>
+                {matForm.kind === "link" ? (
+                  <div className="space-y-2">
+                    <Label className="text-[#302012]">Ссылка *</Label>
+                    <Input
+                      type="url"
+                      value={matForm.url}
+                      onChange={(e) =>
+                        setMatForm({ ...matForm, url: e.target.value })
+                      }
+                      className={inputCls}
+                      placeholder="https://…"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-[#302012]">Файл *</Label>
+                    <Input
+                      type="file"
+                      onChange={(e) =>
+                        setMatForm({
+                          ...matForm,
+                          file: e.target.files?.[0] || null,
+                        })
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={isUploadingMat}
+                  className={btnCls}
+                >
+                  {isUploadingMat ? "Сохранение…" : "Добавить в библиотеку"}
+                </Button>
+              </form>
+            </div>
+
+            <div className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden mt-6">
+              <div className="px-6 py-3 bg-[#302012] text-[#F5F3ED]">
+                Библиотека материалов ({materials.length})
+              </div>
+              {materials.length === 0 ? (
+                <div className="p-6 text-center text-[#302012]/70">
+                  Пока пусто
+                </div>
+              ) : (
+                <ul className="divide-y divide-[#302012]/15">
+                  {materials.map((m) => (
+                    <li
+                      key={m.id}
+                      className="px-6 py-4 text-[#302012] flex items-start justify-between gap-4"
+                    >
+                      <div>
+                        <span className="text-sm text-[#302012]/60">
+                          {({
+                            video: "Видео",
+                            pdf: "PDF",
+                            document: "Документ",
+                            link: "Ссылка",
+                          } as Record<string, string>)[m.kind] || m.kind}
+                        </span>
+                        <p className="font-medium">{m.title}</p>
+                        {m.url && (
+                          <a
+                            href={m.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-[#302012]/70 underline break-all"
+                          >
+                            {m.url}
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMaterial(m.id, m.title)}
+                        className="text-sm underline text-red-700 hover:opacity-70 shrink-0"
+                      >
+                        Удалить
+                      </button>
                     </li>
                   ))}
                 </ul>

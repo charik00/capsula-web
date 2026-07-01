@@ -392,7 +392,8 @@ export async function getClientCard(email: string) {
   const clean = (email || "").trim().toLowerCase();
   if (!clean) return { success: false, error: "Не указан email" };
 
-  const [q, acc, meds, notes, files, listens] = await Promise.all([
+  const [q, acc, meds, notes, files, listens, matLib, matGrants] =
+    await Promise.all([
     supabaseAdmin
       .from("questionnaires")
       .select("id, program, contact, answers, created_at")
@@ -417,6 +418,14 @@ export async function getClientCard(email: string) {
     supabaseAdmin
       .from("listen_events")
       .select("meditation_id, kind, created_at")
+      .eq("user_email", clean),
+    supabaseAdmin
+      .from("materials")
+      .select("id, title, kind, url, created_at")
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("material_access")
+      .select("material_id, expires_at")
       .eq("user_email", clean),
   ]);
 
@@ -455,6 +464,8 @@ export async function getClientCard(email: string) {
         expires_at: a.expires_at,
       })),
       listens: listenStats,
+      materialsLibrary: matLib.data || [],
+      materialGrants: matGrants.data || [],
       notes: notes.data || [],
       files: files.data || [],
     },
@@ -599,6 +610,121 @@ export async function setMaterialExpiry(id: string, days?: number) {
     .from("client_files")
     .update({ expires_at: daysToExpiry(days) })
     .eq("id", id);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+// ===== Библиотека материалов (общая) + выдача клиентам галочками =====
+
+export async function listMaterials() {
+  await assertAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("materials")
+    .select("id, title, kind, url, created_at")
+    .order("created_at", { ascending: false });
+  if (error) return { success: false, error: error.message, data: [] };
+  return { success: true, data: data || [] };
+}
+
+export async function createMaterialUpload(filename: string) {
+  await assertAdmin();
+  const ext = (filename.split(".").pop() || "dat").toLowerCase();
+  const path = `materials/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.${ext}`;
+  const { data, error } = await supabaseAdmin.storage
+    .from("media")
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    return {
+      success: false,
+      error: error?.message || "Не удалось подготовить загрузку",
+    };
+  }
+  return { success: true, path, token: data.token };
+}
+
+export async function saveMaterial(title: string, kind: string, path: string) {
+  await assertAdmin();
+  if (!title.trim() || !path) {
+    return { success: false, error: "Заполните название и выберите файл" };
+  }
+  const { error } = await supabaseAdmin
+    .from("materials")
+    .insert([{ title: title.trim(), kind: kind || "document", path }]);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function saveMaterialLink(title: string, url: string) {
+  await assertAdmin();
+  const link = (url || "").trim();
+  if (!title.trim() || !link) {
+    return { success: false, error: "Укажите название и ссылку" };
+  }
+  if (!/^https?:\/\//i.test(link)) {
+    return {
+      success: false,
+      error: "Ссылка должна начинаться с http:// или https://",
+    };
+  }
+  const { error } = await supabaseAdmin
+    .from("materials")
+    .insert([{ title: title.trim(), kind: "link", url: link }]);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function deleteMaterial(id: string) {
+  await assertAdmin();
+  if (!id) return { success: false, error: "Нет id" };
+  const { data: m } = await supabaseAdmin
+    .from("materials")
+    .select("path")
+    .eq("id", id)
+    .maybeSingle();
+  const { error } = await supabaseAdmin.from("materials").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+  if (m?.path && !/^https?:\/\//i.test(m.path)) {
+    await supabaseAdmin.storage.from("media").remove([m.path]);
+  }
+  return { success: true };
+}
+
+// Выдать/обновить доступ клиента к материалу (days пусто/0 = бессрочно)
+export async function grantMaterialAccess(
+  email: string,
+  materialId: string,
+  days?: number
+) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean || !materialId) {
+    return { success: false, error: "Не указан клиент или материал" };
+  }
+  const { error } = await supabaseAdmin.from("material_access").upsert(
+    {
+      user_email: clean,
+      material_id: materialId,
+      expires_at: daysToExpiry(days),
+    },
+    { onConflict: "user_email,material_id" }
+  );
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function revokeMaterialAccess(email: string, materialId: string) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean || !materialId) {
+    return { success: false, error: "Не указан клиент или материал" };
+  }
+  const { error } = await supabaseAdmin
+    .from("material_access")
+    .delete()
+    .eq("user_email", clean)
+    .eq("material_id", materialId);
   if (error) return { success: false, error: error.message };
   return { success: true };
 }

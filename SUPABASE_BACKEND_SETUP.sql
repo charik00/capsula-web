@@ -122,6 +122,34 @@ create index if not exists listen_events_user_med_idx
 alter table public.listen_events enable row level security;
 -- политик нет: запись и чтение только через service_role (серверный код)
 
+-- ============================================================
+-- 9. Библиотека материалов (как медитации: загрузил один раз,
+--    раздаёшь клиентам галочками). materials = сам материал,
+--    material_access = кому выдан (со сроком, null = бессрочно).
+-- ============================================================
+create table if not exists public.materials (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  kind text not null default 'document',  -- video|pdf|document|link|...
+  path text,                              -- для файлов (в бакете media)
+  url text,                               -- для ссылок (kind='link')
+  created_at timestamptz not null default now()
+);
+create table if not exists public.material_access (
+  id uuid primary key default gen_random_uuid(),
+  user_email text not null,
+  material_id uuid not null references public.materials(id) on delete cascade,
+  expires_at timestamptz,                 -- null = бессрочно
+  created_at timestamptz not null default now()
+);
+create index if not exists material_access_user_idx
+  on public.material_access (user_email);
+create unique index if not exists material_access_uniq
+  on public.material_access (user_email, material_id);
+alter table public.materials enable row level security;
+alter table public.material_access enable row level security;
+-- политик нет: доступ только через service_role (серверный код)
+
 -- 6. Приватный бакет для медитаций/документов
 insert into storage.buckets (id, name, public)
 values ('media', 'media', false)

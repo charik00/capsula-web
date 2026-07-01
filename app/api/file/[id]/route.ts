@@ -28,26 +28,37 @@ export async function GET(
     return NextResponse.json({ error: "Доступ не открыт" }, { status: 403 });
   }
 
-  const { data: file } = await supabaseAdmin
-    .from("client_files")
-    .select("path, client_email, expires_at")
-    .eq("id", id)
+  // Материал выдан этому клиенту?
+  const { data: access } = await supabaseAdmin
+    .from("material_access")
+    .select("expires_at")
+    .eq("user_email", email)
+    .eq("material_id", id)
     .maybeSingle();
 
-  if (!file || file.client_email.toLowerCase() !== email) {
-    return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+  if (!access) {
+    return NextResponse.json({ error: "Материал не выдан" }, { status: 403 });
   }
-
-  if (file.expires_at && new Date(file.expires_at) < new Date()) {
+  if (access.expires_at && new Date(access.expires_at) < new Date()) {
     return NextResponse.json(
       { error: "Срок доступа к материалу истёк" },
       { status: 403 }
     );
   }
 
+  const { data: material } = await supabaseAdmin
+    .from("materials")
+    .select("path")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!material || !material.path) {
+    return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+  }
+
   const { data: signed, error } = await supabaseAdmin.storage
     .from("media")
-    .createSignedUrl(file.path, TTL);
+    .createSignedUrl(material.path, TTL);
 
   if (error || !signed) {
     return NextResponse.json(

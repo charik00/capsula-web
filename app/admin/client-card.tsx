@@ -1,19 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { getQuestionnaire } from "@/app/anketa/questions";
 import {
   getClientCard,
   addClientNote,
   deleteClientNote,
-  createClientFileUpload,
-  saveClientFile,
-  saveClientLink,
-  deleteClientFile,
-  setMaterialExpiry,
   extendAccess,
   revokeAccess,
+  grantMaterialAccess,
+  revokeMaterialAccess,
 } from "@/app/actions/admin";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -34,24 +30,20 @@ interface Card {
     completes: number;
     last: string | null;
   }[];
-  notes: { id: string; body: string; created_at: string }[];
-  files: {
+  materialsLibrary: {
     id: string;
     title: string;
     kind: string;
     url: string | null;
-    expires_at: string | null;
-    created_at: string;
   }[];
+  materialGrants: { material_id: string; expires_at: string | null }[];
+  notes: { id: string; body: string; created_at: string }[];
 }
 
 const KIND_LABELS: Record<string, string> = {
-  meditation: "Медитация",
-  diet: "Диета",
-  instruction: "Инструкция",
-  document: "Документ",
-  pdf: "PDF",
   video: "Видео",
+  pdf: "PDF",
+  document: "Документ",
   link: "Ссылка",
 };
 
@@ -61,14 +53,9 @@ export function ClientCard({ email }: { email: string }) {
   const [card, setCard] = useState<Card | null>(null);
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
-  const [fileTitle, setFileTitle] = useState("");
-  const [fileKind, setFileKind] = useState("diet");
-  const [fileObj, setFileObj] = useState<File | null>(null);
-  const [fileUrl, setFileUrl] = useState("");
-  const [fileDays, setFileDays] = useState("");
-  const [matDays, setMatDays] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [extDays, setExtDays] = useState<Record<string, string>>({});
+  const [matDays, setMatDays] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,75 +93,6 @@ export function ClientCard({ email }: { email: string }) {
     }
   }
 
-  async function handleUploadFile(e: React.FormEvent) {
-    e.preventDefault();
-
-    // Ссылка — без файла, сохраняем url
-    if (fileKind === "link") {
-      if (!fileTitle.trim() || !fileUrl.trim()) {
-        alert("Укажите название и ссылку");
-        return;
-      }
-      setBusy(true);
-      try {
-        const res = await saveClientLink(
-          email,
-          fileTitle,
-          fileUrl,
-          fileDays ? Number(fileDays) : undefined
-        );
-        if (res.success) {
-          setFileTitle("");
-          setFileUrl("");
-          setFileDays("");
-          await load();
-        } else alert(res.error || "Ошибка");
-      } catch (e) {
-        alert(e instanceof Error ? e.message : "Ошибка");
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-
-    if (!fileTitle.trim() || !fileObj) {
-      alert("Укажите название и выберите файл");
-      return;
-    }
-    setBusy(true);
-    try {
-      const prep = await createClientFileUpload(email, fileObj.name);
-      if (!prep.success || !prep.path || !prep.token) {
-        alert(prep.error || "Ошибка подготовки");
-        return;
-      }
-      const up = await supabase.storage
-        .from("media")
-        .uploadToSignedUrl(prep.path, prep.token, fileObj);
-      if (up.error) {
-        alert("Ошибка загрузки: " + up.error.message);
-        return;
-      }
-      const saved = await saveClientFile(
-        email,
-        fileTitle,
-        fileKind,
-        prep.path,
-        fileDays ? Number(fileDays) : undefined
-      );
-      if (saved.success) {
-        setFileTitle("");
-        setFileObj(null);
-        setFileDays("");
-        await load();
-      } else alert(saved.error || "Ошибка сохранения");
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Ошибка");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleExtend(id: string) {
     const d = Number(extDays[id] || "30");
     const res = await extendAccess(id, d);
@@ -182,16 +100,27 @@ export function ClientCard({ email }: { email: string }) {
     else alert(res.error || "Ошибка");
   }
 
-  async function handleSetMatExpiry(id: string, days?: number) {
-    const res = await setMaterialExpiry(id, days);
+  // Выдать/обновить материал клиенту (days пусто/undefined = бессрочно)
+  async function grantMat(materialId: string, days?: number) {
+    const res = await grantMaterialAccess(email, materialId, days);
+    if (res.success) await load();
+    else alert(res.error || "Ошибка");
+  }
+
+  async function toggleMat(materialId: string, granted: boolean) {
+    const res = granted
+      ? await revokeMaterialAccess(email, materialId)
+      : await grantMaterialAccess(
+          email,
+          materialId,
+          matDays[materialId] ? Number(matDays[materialId]) : undefined
+        );
     if (res.success) await load();
     else alert(res.error || "Ошибка");
   }
 
   if (loading) {
-    return (
-      <div className="p-6 text-[#302012]/60">Загрузка карточки…</div>
-    );
+    return <div className="p-6 text-[#302012]/60">Загрузка карточки…</div>;
   }
   if (!card) {
     return <div className="p-6 text-red-700">Не удалось загрузить</div>;
@@ -201,9 +130,7 @@ export function ClientCard({ email }: { email: string }) {
     <div className="p-6 space-y-8 bg-[#F5F3ED]">
       {/* Анкета */}
       <section>
-        <h3 className="text-lg font-medium text-[#302012] mb-3">
-          Анкета
-        </h3>
+        <h3 className="text-lg font-medium text-[#302012] mb-3">Анкета</h3>
         {card.questionnaires.length === 0 ? (
           <p className="text-[#302012]/60 text-sm">Анкета не заполнена</p>
         ) : (
@@ -215,8 +142,7 @@ export function ClientCard({ email }: { email: string }) {
                 className="bg-white border border-[#302012]/30 rounded p-4 mb-3 space-y-3"
               >
                 <p className="text-sm text-[#302012]/60">
-                  {qn?.title || q.program || "Анкета"} ·{" "}
-                  {fmtDate(q.created_at)}
+                  {qn?.title || q.program || "Анкета"} · {fmtDate(q.created_at)}
                   {q.contact ? ` · ${q.contact}` : ""}
                 </p>
                 {qn
@@ -227,9 +153,7 @@ export function ClientCard({ email }: { email: string }) {
                         </p>
                         {s.questions.map((qq) => {
                           const v = q.answers[qq.id];
-                          const val = Array.isArray(v)
-                            ? v.join(", ")
-                            : v || "";
+                          const val = Array.isArray(v) ? v.join(", ") : v || "";
                           return (
                             <div key={qq.id}>
                               <p className="text-sm text-[#302012]/60">
@@ -257,10 +181,10 @@ export function ClientCard({ email }: { email: string }) {
         )}
       </section>
 
-      {/* Доступы */}
+      {/* Доступы к медитациям */}
       <section>
         <h3 className="text-lg font-medium text-[#302012] mb-3">
-          Доступы
+          Доступы к медитациям
         </h3>
         {card.accesses.length === 0 ? (
           <p className="text-[#302012]/60 text-sm">Доступы не выданы</p>
@@ -275,8 +199,7 @@ export function ClientCard({ email }: { email: string }) {
                   className="bg-white border border-[#302012]/30 rounded p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between"
                 >
                   <span className="text-[#302012] text-sm">
-                    {a.meditation} · до{" "}
-                    {exp.toLocaleDateString("ru-RU")}{" "}
+                    {a.meditation} · до {exp.toLocaleDateString("ru-RU")}{" "}
                     {active ? (
                       <span className="text-green-700">(активен)</span>
                     ) : (
@@ -289,10 +212,7 @@ export function ClientCard({ email }: { email: string }) {
                       min={1}
                       value={extDays[a.id] ?? "30"}
                       onChange={(e) =>
-                        setExtDays((p) => ({
-                          ...p,
-                          [a.id]: e.target.value,
-                        }))
+                        setExtDays((p) => ({ ...p, [a.id]: e.target.value }))
                       }
                       className={`${inputCls} w-20`}
                     />
@@ -356,160 +276,96 @@ export function ClientCard({ email }: { email: string }) {
         )}
       </section>
 
-      {/* Файлы */}
+      {/* Материалы — выдача из библиотеки галочками */}
       <section>
-        <h3 className="text-lg font-medium text-[#302012] mb-3">
-          Файлы (диеты, инструкции, документы)
-        </h3>
-        <form
-          onSubmit={handleUploadFile}
-          className="bg-white border border-[#302012]/30 rounded p-4 space-y-3 mb-3"
-        >
-          <Input
-            value={fileTitle}
-            onChange={(e) => setFileTitle(e.target.value)}
-            className={inputCls}
-            placeholder="Название (например: Диета на неделю)"
-          />
-          <select
-            value={fileKind}
-            onChange={(e) => setFileKind(e.target.value)}
-            className="w-full bg-white border border-[#302012] text-[#302012] rounded px-3 py-2 text-base"
-          >
-            <option value="diet">Диета</option>
-            <option value="instruction">Инструкция</option>
-            <option value="document">Документ</option>
-            <option value="pdf">PDF</option>
-            <option value="video">Видео</option>
-            <option value="meditation">Медитация</option>
-            <option value="link">Ссылка</option>
-          </select>
-          {fileKind === "link" ? (
-            <Input
-              type="url"
-              value={fileUrl}
-              onChange={(e) => setFileUrl(e.target.value)}
-              className={inputCls}
-              placeholder="https://… (ссылка на видео, статью и т.п.)"
-            />
-          ) : (
-            <Input
-              type="file"
-              onChange={(e) => setFileObj(e.target.files?.[0] || null)}
-              className={inputCls}
-            />
-          )}
-          <Input
-            type="number"
-            min={1}
-            value={fileDays}
-            onChange={(e) => setFileDays(e.target.value)}
-            className={inputCls}
-            placeholder="Срок в днях (пусто = бессрочно)"
-          />
-          <Button
-            type="submit"
-            disabled={busy}
-            className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
-          >
-            {busy
-              ? "Сохранение…"
-              : fileKind === "link"
-              ? "Добавить ссылку"
-              : "Загрузить файл"}
-          </Button>
-        </form>
-        {card.files.length === 0 ? (
-          <p className="text-[#302012]/60 text-sm">Файлов нет</p>
+        <h3 className="text-lg font-medium text-[#302012] mb-3">Материалы</h3>
+        {card.materialsLibrary.length === 0 ? (
+          <p className="text-[#302012]/60 text-sm">
+            В библиотеке нет материалов. Добавьте их во вкладке «Материалы».
+          </p>
         ) : (
           <ul className="space-y-2">
-            {card.files.map((f) => (
-              <li
-                key={f.id}
-                className="bg-white border border-[#302012]/30 rounded p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-              >
-                <span className="text-[#302012] text-sm">
-                  <b>{KIND_LABELS[f.kind] || f.kind}:</b> {f.title}{" "}
-                  <span className="text-[#302012]/50">
-                    · {fmtDate(f.created_at)}
-                  </span>
-                  {f.kind === "link" && f.url ? (
-                    <>
-                      <br />
-                      <a
-                        href={f.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#302012]/70 underline break-all"
+            {card.materialsLibrary.map((m) => {
+              const grant = card.materialGrants.find(
+                (g) => g.material_id === m.id
+              );
+              const granted = !!grant;
+              return (
+                <li
+                  key={m.id}
+                  className="bg-white border border-[#302012]/30 rounded p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                >
+                  <label className="flex items-start gap-2 text-[#302012] text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={granted}
+                      onChange={() => toggleMat(m.id, granted)}
+                      className="w-4 h-4 mt-0.5 shrink-0"
+                    />
+                    <span>
+                      <b>{KIND_LABELS[m.kind] || m.kind}:</b> {m.title}
+                      {granted &&
+                        (grant?.expires_at ? (
+                          new Date(grant.expires_at).getTime() > Date.now() ? (
+                            <span className="text-green-700 text-xs">
+                              {" "}
+                              · до{" "}
+                              {new Date(grant.expires_at).toLocaleDateString(
+                                "ru-RU"
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-red-700 text-xs">
+                              {" "}
+                              · срок истёк
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[#302012]/50 text-xs">
+                            {" "}
+                            · бессрочно
+                          </span>
+                        ))}
+                    </span>
+                  </label>
+                  {granted && (
+                    <span className="flex items-center gap-2 shrink-0">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={matDays[m.id] ?? ""}
+                        onChange={(e) =>
+                          setMatDays((p) => ({ ...p, [m.id]: e.target.value }))
+                        }
+                        className={`${inputCls} w-20`}
+                        placeholder="дней"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = Number(matDays[m.id]);
+                          if (!d || d <= 0) {
+                            alert("Укажите число дней");
+                            return;
+                          }
+                          grantMat(m.id, d);
+                        }}
+                        className="text-sm underline text-[#302012]"
                       >
-                        {f.url}
-                      </a>
-                    </>
-                  ) : null}
-                  <br />
-                  {f.expires_at ? (
-                    new Date(f.expires_at).getTime() > Date.now() ? (
-                      <span className="text-green-700 text-xs">
-                        доступ до{" "}
-                        {new Date(f.expires_at).toLocaleDateString("ru-RU")}
-                      </span>
-                    ) : (
-                      <span className="text-red-700 text-xs">
-                        срок истёк (
-                        {new Date(f.expires_at).toLocaleDateString("ru-RU")})
-                      </span>
-                    )
-                  ) : (
-                    <span className="text-[#302012]/50 text-xs">бессрочно</span>
+                        Срок
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => grantMat(m.id)}
+                        className="text-sm underline text-[#302012]/70"
+                      >
+                        Бессрочно
+                      </button>
+                    </span>
                   )}
-                </span>
-                <span className="flex items-center gap-2 shrink-0">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={matDays[f.id] ?? ""}
-                    onChange={(e) =>
-                      setMatDays((p) => ({ ...p, [f.id]: e.target.value }))
-                    }
-                    className={`${inputCls} w-20`}
-                    placeholder="дней"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = Number(matDays[f.id]);
-                      if (!d || d <= 0) {
-                        alert("Укажите число дней");
-                        return;
-                      }
-                      handleSetMatExpiry(f.id, d);
-                    }}
-                    className="text-sm underline text-[#302012]"
-                  >
-                    Срок
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetMatExpiry(f.id)}
-                    className="text-sm underline text-[#302012]/70"
-                  >
-                    Бессрочно
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!confirm(`Удалить «${f.title}»?`)) return;
-                      const r = await deleteClientFile(f.id);
-                      if (r.success) await load();
-                      else alert(r.error || "Ошибка");
-                    }}
-                    className="text-sm underline text-red-700"
-                  >
-                    Удалить
-                  </button>
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -545,9 +401,7 @@ export function ClientCard({ email }: { email: string }) {
                 className="bg-white border border-[#302012]/30 rounded p-3"
               >
                 <div className="flex justify-between gap-3">
-                  <p className="text-[#302012] whitespace-pre-wrap">
-                    {n.body}
-                  </p>
+                  <p className="text-[#302012] whitespace-pre-wrap">{n.body}</p>
                   <button
                     type="button"
                     onClick={async () => {
