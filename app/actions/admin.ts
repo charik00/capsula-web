@@ -694,6 +694,46 @@ export async function saveMaterialLink(
   return { success: true };
 }
 
+// Редактирование материала: название, описание, ссылка и/или новый файл
+export async function updateMaterial(
+  id: string,
+  title: string,
+  description: string,
+  url?: string,
+  newPath?: string
+) {
+  await assertAdmin();
+  if (!id || !title.trim()) {
+    return { success: false, error: "Название не может быть пустым" };
+  }
+  let oldPath: string | null = null;
+  if (newPath) {
+    const { data } = await supabaseAdmin
+      .from("materials")
+      .select("path")
+      .eq("id", id)
+      .maybeSingle();
+    oldPath = data?.path || null;
+  }
+  const patch: Record<string, unknown> = {
+    title: title.trim(),
+    description: description?.trim() || null,
+  };
+  if (url !== undefined) patch.url = url.trim() || null;
+  if (newPath) patch.path = newPath;
+
+  const { error } = await supabaseAdmin
+    .from("materials")
+    .update(patch)
+    .eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  if (newPath && oldPath && !/^https?:\/\//i.test(oldPath)) {
+    await supabaseAdmin.storage.from("media").remove([oldPath]);
+  }
+  return { success: true };
+}
+
 export async function deleteMaterial(id: string) {
   await assertAdmin();
   if (!id) return { success: false, error: "Нет id" };

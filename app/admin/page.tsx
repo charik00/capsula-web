@@ -40,6 +40,7 @@ import {
   createMaterialUpload,
   saveMaterial,
   saveMaterialLink,
+  updateMaterial,
   deleteMaterial,
 } from "@/app/actions/admin";
 import { ClientCard } from "./client-card";
@@ -103,7 +104,13 @@ export default function AdminPage() {
 
   // Библиотека материалов (видео/pdf/документы/ссылки)
   const [materials, setMaterials] = useState<
-    { id: string; title: string; kind: string; url: string | null }[]
+    {
+      id: string;
+      title: string;
+      kind: string;
+      url: string | null;
+      description: string | null;
+    }[]
   >([]);
   const [isUploadingMat, setIsUploadingMat] = useState(false);
   const [matForm, setMatForm] = useState({
@@ -112,6 +119,14 @@ export default function AdminPage() {
     file: null as File | null,
     url: "",
     description: "",
+  });
+  const [editMatId, setEditMatId] = useState<string | null>(null);
+  const [editMat, setEditMat] = useState({
+    title: "",
+    description: "",
+    url: "",
+    kind: "",
+    file: null as File | null,
   });
   const [accessForm, setAccessForm] = useState({
     userEmail: "",
@@ -261,8 +276,69 @@ export default function AdminPage() {
           title: string;
           kind: string;
           url: string | null;
+          description: string | null;
         }[]
       );
+  }
+
+  function startEditMat(m: {
+    id: string;
+    title: string;
+    kind: string;
+    url: string | null;
+    description: string | null;
+  }) {
+    setEditMatId(m.id);
+    setEditMat({
+      title: m.title,
+      description: m.description || "",
+      url: m.url || "",
+      kind: m.kind,
+      file: null,
+    });
+  }
+
+  async function saveEditMat(id: string) {
+    if (!editMat.title.trim()) {
+      alert("Название не может быть пустым");
+      return;
+    }
+    setIsUploadingMat(true);
+    try {
+      let newPath: string | undefined;
+      if (editMat.kind !== "link" && editMat.file) {
+        const prep = await createMaterialUpload(editMat.file.name);
+        if (!prep.success || !prep.path || !prep.token) {
+          alert(prep.error || "Не удалось подготовить загрузку");
+          return;
+        }
+        const up = await supabase.storage
+          .from("media")
+          .uploadToSignedUrl(prep.path, prep.token, editMat.file, {
+            contentType: editMat.file.type || "application/octet-stream",
+          });
+        if (up.error) {
+          alert("Ошибка загрузки файла: " + up.error.message);
+          return;
+        }
+        newPath = prep.path;
+      }
+      const res = await updateMaterial(
+        id,
+        editMat.title,
+        editMat.description,
+        editMat.kind === "link" ? editMat.url : undefined,
+        newPath
+      );
+      if (res.success) {
+        setEditMatId(null);
+        await loadMaterials();
+      } else alert(res.error || "Ошибка");
+    } catch (err) {
+      alert("Ошибка: " + (err instanceof Error ? err.message : "неизвестная"));
+    } finally {
+      setIsUploadingMat(false);
+    }
   }
 
   async function handleSaveMaterial(e: React.FormEvent) {
@@ -1262,38 +1338,119 @@ export default function AdminPage() {
               ) : (
                 <ul className="divide-y divide-[#302012]/15">
                   {materials.map((m) => (
-                    <li
-                      key={m.id}
-                      className="px-6 py-4 text-[#302012] flex items-start justify-between gap-4"
-                    >
-                      <div>
-                        <span className="text-sm text-[#302012]/60">
-                          {({
-                            video: "Видео",
-                            pdf: "PDF",
-                            document: "Документ",
-                            link: "Ссылка",
-                          } as Record<string, string>)[m.kind] || m.kind}
-                        </span>
-                        <p className="font-medium">{m.title}</p>
-                        {m.url && (
-                          <a
-                            href={m.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-[#302012]/70 underline break-all"
-                          >
-                            {m.url}
-                          </a>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMaterial(m.id, m.title)}
-                        className="text-sm underline text-red-700 hover:opacity-70 shrink-0"
-                      >
-                        Удалить
-                      </button>
+                    <li key={m.id} className="px-6 py-4 text-[#302012]">
+                      {editMatId === m.id ? (
+                        <div className="space-y-3">
+                          <Input
+                            value={editMat.title}
+                            onChange={(e) =>
+                              setEditMat({ ...editMat, title: e.target.value })
+                            }
+                            className={inputCls}
+                            placeholder="Название"
+                          />
+                          <Textarea
+                            value={editMat.description}
+                            onChange={(e) =>
+                              setEditMat({
+                                ...editMat,
+                                description: e.target.value,
+                              })
+                            }
+                            className={`${inputCls} min-h-[70px]`}
+                            placeholder="Короткое описание"
+                          />
+                          {editMat.kind === "link" ? (
+                            <Input
+                              type="url"
+                              value={editMat.url}
+                              onChange={(e) =>
+                                setEditMat({ ...editMat, url: e.target.value })
+                              }
+                              className={inputCls}
+                              placeholder="Ссылка"
+                            />
+                          ) : (
+                            <div>
+                              <p className="text-xs text-[#302012]/50 mb-1">
+                                Заменить файл (по желанию):
+                              </p>
+                              <Input
+                                type="file"
+                                onChange={(e) =>
+                                  setEditMat({
+                                    ...editMat,
+                                    file: e.target.files?.[0] || null,
+                                  })
+                                }
+                                className={inputCls}
+                              />
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              onClick={() => saveEditMat(m.id)}
+                              disabled={isUploadingMat}
+                              className="bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90"
+                            >
+                              {isUploadingMat ? "Сохранение…" : "Сохранить"}
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => setEditMatId(null)}
+                              className="bg-transparent border border-[#302012] text-[#302012] hover:bg-[#302012]/10"
+                            >
+                              Отмена
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <span className="text-sm text-[#302012]/60">
+                              {({
+                                video: "Видео",
+                                pdf: "PDF",
+                                document: "Документ",
+                                link: "Ссылка",
+                              } as Record<string, string>)[m.kind] || m.kind}
+                            </span>
+                            <p className="font-medium">{m.title}</p>
+                            {m.description && (
+                              <p className="text-sm text-[#302012]/60">
+                                {m.description}
+                              </p>
+                            )}
+                            {m.url && (
+                              <a
+                                href={m.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-[#302012]/70 underline break-all"
+                              >
+                                {m.url}
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEditMat(m)}
+                              className="text-sm underline text-[#302012] hover:opacity-70"
+                            >
+                              Изменить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMaterial(m.id, m.title)}
+                              className="text-sm underline text-red-700 hover:opacity-70"
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
