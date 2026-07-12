@@ -73,19 +73,6 @@ export function MaterialsList() {
     return url || null;
   };
 
-  const openFile = async (id: string) => {
-    setOpeningId(id);
-    try {
-      const url = await getSignedUrl(id);
-      if (url) window.open(url, "_blank", "noopener,noreferrer");
-      else alert("Не удалось открыть файл");
-    } catch {
-      alert("Ошибка сети");
-    } finally {
-      setOpeningId(null);
-    }
-  };
-
   const playVideo = async (id: string) => {
     setOpeningId(id);
     try {
@@ -206,13 +193,14 @@ export function MaterialsList() {
                   {openingId === f.id ? "Загрузка…" : "Смотреть"}
                 </button>
               ) : (
-                <button
-                  onClick={() => openFile(f.id)}
-                  disabled={openingId === f.id}
+                <a
+                  href={`/dashboard/view/${f.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-4 py-2 bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90 text-sm shrink-0"
                 >
-                  {openingId === f.id ? "Открываю…" : "Открыть"}
-                </button>
+                  Открыть
+                </a>
               )}
             </div>
           );
