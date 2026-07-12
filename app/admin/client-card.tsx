@@ -10,6 +10,8 @@ import {
   revokeAccess,
   grantMaterialAccess,
   revokeMaterialAccess,
+  grantAllMaterials,
+  revokeAllMaterials,
 } from "@/app/actions/admin";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -56,6 +58,7 @@ export function ClientCard({ email }: { email: string }) {
   const [busy, setBusy] = useState(false);
   const [extDays, setExtDays] = useState<Record<string, string>>({});
   const [matDays, setMatDays] = useState<Record<string, string>>({});
+  const [bulkDays, setBulkDays] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,6 +117,18 @@ export function ClientCard({ email }: { email: string }) {
           email,
           materialId,
           matDays[materialId] ? Number(matDays[materialId]) : undefined
+        );
+    if (res.success) await load();
+    else alert(res.error || "Ошибка");
+  }
+
+  // «Отметить все»: выдать/снять все материалы разом (общий срок)
+  async function toggleAllMat(allGranted: boolean) {
+    const res = allGranted
+      ? await revokeAllMaterials(email)
+      : await grantAllMaterials(
+          email,
+          bulkDays ? Number(bulkDays) : undefined
         );
     if (res.success) await load();
     else alert(res.error || "Ошибка");
@@ -284,7 +299,33 @@ export function ClientCard({ email }: { email: string }) {
             В библиотеке нет материалов. Добавьте их во вкладке «Материалы».
           </p>
         ) : (
-          <ul className="space-y-2">
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-3 bg-white border border-[#302012]/30 rounded p-3">
+              <label className="flex items-center gap-2 text-sm text-[#302012] cursor-pointer font-medium">
+                <input
+                  type="checkbox"
+                  checked={card.materialsLibrary.every((m) =>
+                    card.materialGrants.some((g) => g.material_id === m.id)
+                  )}
+                  onChange={(e) => toggleAllMat(!e.target.checked)}
+                  className="w-4 h-4"
+                />
+                Отметить все
+              </label>
+              <span className="flex items-center gap-2 text-sm text-[#302012]/70">
+                Срок:
+                <Input
+                  type="number"
+                  min={1}
+                  value={bulkDays}
+                  onChange={(e) => setBulkDays(e.target.value)}
+                  className={`${inputCls} w-24`}
+                  placeholder="дней"
+                />
+                <span className="text-[#302012]/50">пусто = бессрочно</span>
+              </span>
+            </div>
+            <ul className="space-y-2">
             {card.materialsLibrary.map((m) => {
               const grant = card.materialGrants.find(
                 (g) => g.material_id === m.id
@@ -366,7 +407,8 @@ export function ClientCard({ email }: { email: string }) {
                 </li>
               );
             })}
-          </ul>
+            </ul>
+          </>
         )}
       </section>
 

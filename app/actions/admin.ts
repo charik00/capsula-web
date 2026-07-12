@@ -747,3 +747,37 @@ export async function revokeMaterialAccess(email: string, materialId: string) {
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
+
+// Выдать клиенту ВСЕ материалы разом (один срок на всё)
+export async function grantAllMaterials(email: string, days?: number) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return { success: false, error: "Не указан клиент" };
+  const { data: mats } = await supabaseAdmin.from("materials").select("id");
+  const ids = (mats || []).map((m) => m.id);
+  if (ids.length === 0) return { success: true };
+  const expires_at = daysToExpiry(days);
+  const rows = ids.map((id) => ({
+    user_email: clean,
+    material_id: id,
+    expires_at,
+  }));
+  const { error } = await supabaseAdmin
+    .from("material_access")
+    .upsert(rows, { onConflict: "user_email,material_id" });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+// Снять у клиента все материалы разом
+export async function revokeAllMaterials(email: string) {
+  await assertAdmin();
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return { success: false, error: "Не указан клиент" };
+  const { error } = await supabaseAdmin
+    .from("material_access")
+    .delete()
+    .eq("user_email", clean);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
