@@ -50,7 +50,7 @@ function youtubeId(url: string): string | null {
     if (host.endsWith("youtube.com")) {
       if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2] || null;
       if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2] || null;
-      if (u.searchParams.get("list")) return null; // плейлист — без одной обложки
+      if (u.searchParams.get("list")) return null;
       return u.searchParams.get("v");
     }
     return null;
@@ -68,8 +68,8 @@ const KIND_LABELS: Record<string, string> = {
   link: "Ссылка",
 };
 
-const isVideo = (f: MyFile) =>
-  f.kind === "video" || (f.kind === "link" && !!f.url && !!embedUrl(f.url));
+const isEmbedLink = (f: MyFile) =>
+  f.kind === "link" && !!f.url && !!embedUrl(f.url);
 
 export function MaterialsList() {
   const [files, setFiles] = useState<MyFile[]>([]);
@@ -108,47 +108,27 @@ export function MaterialsList() {
     }
   };
 
+  const closeVideo = (id: string) =>
+    setVideoUrls((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
+
   if (loading) return null;
 
-  const videos = files.filter(isVideo);
-  const others = files.filter((f) => !isVideo(f));
-  if (videos.length === 0 && others.length === 0) return null;
+  const ourVideos = files.filter((f) => f.kind === "video");
+  const youtube = files.filter(isEmbedLink);
+  const docs = files.filter((f) => f.kind !== "video" && !isEmbedLink(f));
 
-  // Плеер для карточки видеотеки
-  const renderPlayer = (f: MyFile) => {
-    // Загруженное видео (файл)
-    if (f.kind === "video") {
-      if (videoUrls[f.id]) {
-        return (
-          <video
-            src={videoUrls[f.id]}
-            controls
-            autoPlay
-            playsInline
-            controlsList="nodownload"
-            onContextMenu={(e) => e.preventDefault()}
-            className="absolute inset-0 w-full h-full object-contain bg-black select-none"
-          />
-        );
-      }
-      return (
-        <button
-          onClick={() => playVideo(f.id)}
-          disabled={openingId === f.id}
-          className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#302012]"
-        >
-          <PlayBadge loading={openingId === f.id} />
-        </button>
-      );
-    }
+  if (!ourVideos.length && !youtube.length && !docs.length) return null;
 
-    // Ссылка YouTube/Vimeo
+  // Плеер YouTube: обложка -> клик -> встроенный плеер
+  const renderYouTube = (f: MyFile) => {
     const embed = embedUrl(f.url || "");
     if (!embed) return null;
     const ytId = youtubeId(f.url || "");
     const isPlaying = playing.includes(f.id);
-
-    // Одиночный YouTube-ролик: сначала обложка, по клику — плеер
     if (ytId && !isPlaying) {
       return (
         <button
@@ -168,8 +148,6 @@ export function MaterialsList() {
         </button>
       );
     }
-
-    // Плейлист/Vimeo или уже нажали play — встроенный плеер
     return (
       <iframe
         src={isPlaying ? withAutoplay(embed) : embed}
@@ -183,42 +161,12 @@ export function MaterialsList() {
 
   return (
     <div className="mt-8 space-y-10">
-      {/* Видеотека */}
-      {videos.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-light text-[#302012] mb-2">Видеотека</h2>
-          <p className="text-[#302012]/70 mb-5 max-w-2xl">
-            {VIDEO_LIBRARY_DESC}
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {videos.map((f) => (
-              <div
-                key={f.id}
-                className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden"
-              >
-                <div className="relative w-full aspect-video bg-black">
-                  {renderPlayer(f)}
-                </div>
-                <div className="p-4">
-                  <p className="font-medium text-[#302012]">{f.title}</p>
-                  {f.description && (
-                    <p className="text-sm text-[#302012]/70 mt-1 whitespace-pre-wrap">
-                      {f.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Материалы (документы, ссылки) */}
-      {others.length > 0 && (
+      {/* 1. Материалы — документы и обычные ссылки */}
+      {docs.length > 0 && (
         <div>
           <h2 className="text-2xl font-light text-[#302012] mb-4">Материалы</h2>
           <div className="space-y-3">
-            {others.map((f) => (
+            {docs.map((f) => (
               <div
                 key={f.id}
                 className="bg-white border-2 border-[#302012] p-4 rounded-lg flex items-center justify-between gap-4"
@@ -258,20 +206,111 @@ export function MaterialsList() {
           </div>
         </div>
       )}
+
+      {/* 2. Видео — загруженные нами (без обложек: заголовок + «Смотреть») */}
+      {ourVideos.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-light text-[#302012] mb-4">Видео</h2>
+          <div className="space-y-3">
+            {ourVideos.map((f) => (
+              <div
+                key={f.id}
+                className="bg-white border-2 border-[#302012] p-4 rounded-lg"
+              >
+                {videoUrls[f.id] ? (
+                  <>
+                    <div className="flex items-start justify-between mb-2 gap-2">
+                      <div className="text-[#302012]">
+                        <p className="font-medium">{f.title}</p>
+                        {f.description && (
+                          <p className="text-sm text-[#302012]/70">
+                            {f.description}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => closeVideo(f.id)}
+                        aria-label="Закрыть видео"
+                        title="Закрыть"
+                        className="text-[#302012] hover:bg-[#302012]/10 rounded-full w-8 h-8 flex items-center justify-center shrink-0 text-xl leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <video
+                      src={videoUrls[f.id]}
+                      controls
+                      autoPlay
+                      playsInline
+                      controlsList="nodownload"
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="block mx-auto max-h-[70vh] max-w-full rounded select-none"
+                    />
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-[#302012]">
+                      <p className="font-medium">{f.title}</p>
+                      {f.description && (
+                        <p className="text-sm text-[#302012]/70 mt-1">
+                          {f.description}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => playVideo(f.id)}
+                      disabled={openingId === f.id}
+                      className="px-4 py-2 bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90 text-sm shrink-0"
+                    >
+                      {openingId === f.id ? "Загрузка…" : "Смотреть"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Видеотека — подборка с YouTube (обложки + описание) */}
+      {youtube.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-light text-[#302012] mb-2">Видеотека</h2>
+          <p className="text-[#302012]/70 mb-5 max-w-2xl">
+            {VIDEO_LIBRARY_DESC}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {youtube.map((f) => (
+              <div
+                key={f.id}
+                className="bg-white border-2 border-[#302012] rounded-lg overflow-hidden"
+              >
+                <div className="relative w-full aspect-video bg-black">
+                  {renderYouTube(f)}
+                </div>
+                <div className="p-4">
+                  <p className="font-medium text-[#302012]">{f.title}</p>
+                  {f.description && (
+                    <p className="text-sm text-[#302012]/70 mt-1 whitespace-pre-wrap">
+                      {f.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function PlayBadge({ loading = false }: { loading?: boolean }) {
+function PlayBadge() {
   return (
     <span className="w-16 h-16 rounded-full bg-[#302012]/85 flex items-center justify-center shadow-lg">
-      {loading ? (
-        <span className="text-[#F5F3ED] text-sm">…</span>
-      ) : (
-        <svg viewBox="0 0 24 24" className="w-7 h-7 fill-[#F5F3ED] ml-1">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      )}
+      <svg viewBox="0 0 24 24" className="w-7 h-7 fill-[#F5F3ED] ml-1">
+        <path d="M8 5v14l11-7z" />
+      </svg>
     </span>
   );
 }
