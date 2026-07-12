@@ -133,8 +133,10 @@ create table if not exists public.materials (
   kind text not null default 'document',  -- video|pdf|document|link|...
   path text,                              -- для файлов (в бакете media)
   url text,                               -- для ссылок (kind='link')
+  description text,                       -- короткое описание (для видеотеки)
   created_at timestamptz not null default now()
 );
+alter table public.materials add column if not exists description text;
 create table if not exists public.material_access (
   id uuid primary key default gen_random_uuid(),
   user_email text not null,

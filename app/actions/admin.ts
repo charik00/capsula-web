@@ -421,7 +421,7 @@ export async function getClientCard(email: string) {
       .eq("user_email", clean),
     supabaseAdmin
       .from("materials")
-      .select("id, title, kind, url, created_at")
+      .select("id, title, kind, url, description, created_at")
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("material_access")
@@ -620,7 +620,7 @@ export async function listMaterials() {
   await assertAdmin();
   const { data, error } = await supabaseAdmin
     .from("materials")
-    .select("id, title, kind, url, created_at")
+    .select("id, title, kind, url, description, created_at")
     .order("created_at", { ascending: false });
   if (error) return { success: false, error: error.message, data: [] };
   return { success: true, data: data || [] };
@@ -644,19 +644,33 @@ export async function createMaterialUpload(filename: string) {
   return { success: true, path, token: data.token };
 }
 
-export async function saveMaterial(title: string, kind: string, path: string) {
+export async function saveMaterial(
+  title: string,
+  kind: string,
+  path: string,
+  description?: string
+) {
   await assertAdmin();
   if (!title.trim() || !path) {
     return { success: false, error: "Заполните название и выберите файл" };
   }
-  const { error } = await supabaseAdmin
-    .from("materials")
-    .insert([{ title: title.trim(), kind: kind || "document", path }]);
+  const { error } = await supabaseAdmin.from("materials").insert([
+    {
+      title: title.trim(),
+      kind: kind || "document",
+      path,
+      description: description?.trim() || null,
+    },
+  ]);
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
 
-export async function saveMaterialLink(title: string, url: string) {
+export async function saveMaterialLink(
+  title: string,
+  url: string,
+  description?: string
+) {
   await assertAdmin();
   const link = (url || "").trim();
   if (!title.trim() || !link) {
@@ -668,9 +682,14 @@ export async function saveMaterialLink(title: string, url: string) {
       error: "Ссылка должна начинаться с http:// или https://",
     };
   }
-  const { error } = await supabaseAdmin
-    .from("materials")
-    .insert([{ title: title.trim(), kind: "link", url: link }]);
+  const { error } = await supabaseAdmin.from("materials").insert([
+    {
+      title: title.trim(),
+      kind: "link",
+      url: link,
+      description: description?.trim() || null,
+    },
+  ]);
   if (error) return { success: false, error: error.message };
   return { success: true };
 }

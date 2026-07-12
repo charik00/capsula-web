@@ -111,6 +111,7 @@ export default function AdminPage() {
     kind: "video",
     file: null as File | null,
     url: "",
+    description: "",
   });
   const [accessForm, setAccessForm] = useState({
     userEmail: "",
@@ -277,7 +278,11 @@ export default function AdminPage() {
           alert("Укажите ссылку");
           return;
         }
-        const res = await saveMaterialLink(matForm.title, matForm.url);
+        const res = await saveMaterialLink(
+          matForm.title,
+          matForm.url,
+          matForm.description
+        );
         if (!res.success) {
           alert(res.error || "Ошибка");
           return;
@@ -301,13 +306,24 @@ export default function AdminPage() {
           alert("Ошибка загрузки файла: " + up.error.message);
           return;
         }
-        const res = await saveMaterial(matForm.title, matForm.kind, prep.path);
+        const res = await saveMaterial(
+          matForm.title,
+          matForm.kind,
+          prep.path,
+          matForm.description
+        );
         if (!res.success) {
           alert(res.error || "Ошибка");
           return;
         }
       }
-      setMatForm({ title: "", kind: "video", file: null, url: "" });
+      setMatForm({
+        title: "",
+        kind: "video",
+        file: null,
+        url: "",
+        description: "",
+      });
       await loadMaterials();
     } catch (err) {
       alert("Ошибка: " + (err instanceof Error ? err.message : "неизвестная"));
@@ -1169,6 +1185,17 @@ export default function AdminPage() {
                     }
                     className={inputCls}
                     placeholder="Например: Дыхательная практика"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[#302012]">Короткое описание</Label>
+                  <Textarea
+                    value={matForm.description}
+                    onChange={(e) =>
+                      setMatForm({ ...matForm, description: e.target.value })
+                    }
+                    className={`${inputCls} min-h-[70px]`}
+                    placeholder="Пара строк — о чём видео (видно клиенту в видеотеке)"
                   />
                 </div>
                 <div className="space-y-2">
