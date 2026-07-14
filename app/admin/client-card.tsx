@@ -134,6 +134,17 @@ export function ClientCard({ email }: { email: string }) {
     else alert(res.error || "Ошибка");
   }
 
+  // Применить срок ко ВСЕМ материалам в любой момент (выдаёт недостающие
+  // и обновляет срок у уже выданных). Пусто = сделать всем бессрочно.
+  async function applyBulkDays() {
+    const res = await grantAllMaterials(
+      email,
+      bulkDays ? Number(bulkDays) : undefined
+    );
+    if (res.success) await load();
+    else alert(res.error || "Ошибка");
+  }
+
   if (loading) {
     return <div className="p-6 text-[#302012]/60">Загрузка карточки…</div>;
   }
@@ -322,6 +333,13 @@ export function ClientCard({ email }: { email: string }) {
                   className={`${inputCls} w-24`}
                   placeholder="дней"
                 />
+                <button
+                  type="button"
+                  onClick={applyBulkDays}
+                  className="text-sm underline text-[#302012] font-medium whitespace-nowrap"
+                >
+                  Задать срок всем
+                </button>
                 <span className="text-[#302012]/50">пусто = бессрочно</span>
               </span>
             </div>
