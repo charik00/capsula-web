@@ -50,9 +50,11 @@ export function Footer() {
                   <circle cx="12" cy="9" r="2.5"/>
                 </svg>
                 <div>
-                  <p>ילדי טהרן 10</p>
-                  <p>ראשון לציון, קומה 3</p>
-                  <a href="https://waze.com/ul/hsv8tzny1x" target="_blank" rel="noopener noreferrer" className="text-base underline text-[#302012] mt-1 inline-block">
+                  <p>HaRishonim Blvd 23</p>
+                  <p>Millennium Building, Entrance B</p>
+                  <p>Rishon LeZion</p>
+                  <p>Floor 17, office Sok</p>
+                  <a href="https://waze.com/ul?q=HaRishonim%2023%2C%20Rishon%20LeZion&navigate=yes" target="_blank" rel="noopener noreferrer" className="text-base underline text-[#302012] mt-1 inline-block">
                     📍 Открыть в Waze →
                   </a>
                 </div>
