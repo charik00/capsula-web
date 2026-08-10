@@ -96,6 +96,27 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
     })();
   }, []);
 
+  // Пока открыто окно с текстом — блокируем прокрутку фона (iOS-надёжно:
+  // фиксируем body и возвращаем позицию при закрытии).
+  useEffect(() => {
+    if (!openText) return;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    return () => {
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, [openText]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -412,7 +433,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
           onClick={() => setOpenText(null)}
         >
           <div
-            className="bg-[#F5F3ED] w-full sm:max-w-lg sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto"
+            className="bg-[#F5F3ED] w-full sm:max-w-lg sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 p-5 border-b border-[#302012]/15 sticky top-0 bg-[#F5F3ED]">
