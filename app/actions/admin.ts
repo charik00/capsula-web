@@ -421,7 +421,7 @@ export async function getClientCard(email: string) {
       .eq("user_email", clean),
     supabaseAdmin
       .from("materials")
-      .select("id, title, kind, url, description, created_at")
+      .select("id, title, kind, url, program, created_at")
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("material_access")
@@ -620,7 +620,7 @@ export async function listMaterials() {
   await assertAdmin();
   const { data, error } = await supabaseAdmin
     .from("materials")
-    .select("id, title, kind, url, description, created_at")
+    .select("id, title, kind, url, description, program, body, created_at")
     .order("created_at", { ascending: false });
   if (error) return { success: false, error: error.message, data: [] };
   return { success: true, data: data || [] };
@@ -648,7 +648,8 @@ export async function saveMaterial(
   title: string,
   kind: string,
   path: string,
-  description?: string
+  description?: string,
+  program?: string
 ) {
   await assertAdmin();
   if (!title.trim() || !path) {
@@ -660,6 +661,7 @@ export async function saveMaterial(
       kind: kind || "document",
       path,
       description: description?.trim() || null,
+      program: program || "both",
     },
   ]);
   if (error) return { success: false, error: error.message };
@@ -669,7 +671,8 @@ export async function saveMaterial(
 export async function saveMaterialLink(
   title: string,
   url: string,
-  description?: string
+  description?: string,
+  program?: string
 ) {
   await assertAdmin();
   const link = (url || "").trim();
@@ -688,6 +691,31 @@ export async function saveMaterialLink(
       kind: "link",
       url: link,
       description: description?.trim() || null,
+      program: program || "both",
+    },
+  ]);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+// Триггер — текстовый материал (без файла): kind='trigger', текст в body
+export async function saveMaterialTrigger(
+  title: string,
+  body: string,
+  program?: string,
+  description?: string
+) {
+  await assertAdmin();
+  if (!title.trim() || !body.trim()) {
+    return { success: false, error: "Заполните название и текст триггера" };
+  }
+  const { error } = await supabaseAdmin.from("materials").insert([
+    {
+      title: title.trim(),
+      kind: "trigger",
+      body: body.trim(),
+      description: description?.trim() || null,
+      program: program || "both",
     },
   ]);
   if (error) return { success: false, error: error.message };
@@ -700,7 +728,9 @@ export async function updateMaterial(
   title: string,
   description: string,
   url?: string,
-  newPath?: string
+  newPath?: string,
+  program?: string,
+  body?: string
 ) {
   await assertAdmin();
   if (!id || !title.trim()) {
@@ -721,6 +751,8 @@ export async function updateMaterial(
   };
   if (url !== undefined) patch.url = url.trim() || null;
   if (newPath) patch.path = newPath;
+  if (program !== undefined) patch.program = program || "both";
+  if (body !== undefined) patch.body = body.trim() || null;
 
   const { error } = await supabaseAdmin
     .from("materials")
@@ -788,12 +820,21 @@ export async function revokeMaterialAccess(email: string, materialId: string) {
   return { success: true };
 }
 
-// Выдать клиенту ВСЕ материалы разом (один срок на всё)
-export async function grantAllMaterials(email: string, days?: number) {
+// Выдать клиенту материалы разом. program: 'smoking'|'sugar' — только этой
+// программы (+ общие 'both'); пусто — вообще все.
+export async function grantAllMaterials(
+  email: string,
+  days?: number,
+  program?: string
+) {
   await assertAdmin();
   const clean = (email || "").trim().toLowerCase();
   if (!clean) return { success: false, error: "Не указан клиент" };
-  const { data: mats } = await supabaseAdmin.from("materials").select("id");
+  let q = supabaseAdmin.from("materials").select("id");
+  if (program === "smoking" || program === "sugar") {
+    q = q.or(`program.eq.${program},program.eq.both,program.is.null`);
+  }
+  const { data: mats } = await q;
   const ids = (mats || []).map((m) => m.id);
   if (ids.length === 0) return { success: true };
   const expires_at = daysToExpiry(days);

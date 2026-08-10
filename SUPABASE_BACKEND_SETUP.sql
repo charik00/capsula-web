@@ -134,9 +134,13 @@ create table if not exists public.materials (
   path text,                              -- для файлов (в бакете media)
   url text,                               -- для ссылок (kind='link')
   description text,                       -- короткое описание (для видеотеки)
+  program text,                           -- 'smoking' | 'sugar' | 'both' (для всех)
+  body text,                              -- текст (для kind='trigger')
   created_at timestamptz not null default now()
 );
 alter table public.materials add column if not exists description text;
+alter table public.materials add column if not exists program text;
+alter table public.materials add column if not exists body text;
 create table if not exists public.material_access (
   id uuid primary key default gen_random_uuid(),
   user_email text not null,

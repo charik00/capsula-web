@@ -122,25 +122,21 @@ export function ClientCard({ email }: { email: string }) {
     else alert(res.error || "Ошибка");
   }
 
-  // «Отметить все»: выдать/снять все материалы разом (общий срок)
-  async function toggleAllMat(allGranted: boolean) {
-    const res = allGranted
-      ? await revokeAllMaterials(email)
-      : await grantAllMaterials(
-          email,
-          bulkDays ? Number(bulkDays) : undefined
-        );
+  // Выдать всё по программе (или все) с общим сроком. Обновляет срок и у
+  // уже выданных. Пусто в поле дней = бессрочно.
+  async function grantByProgram(program?: string) {
+    const res = await grantAllMaterials(
+      email,
+      bulkDays ? Number(bulkDays) : undefined,
+      program
+    );
     if (res.success) await load();
     else alert(res.error || "Ошибка");
   }
 
-  // Применить срок ко ВСЕМ материалам в любой момент (выдаёт недостающие
-  // и обновляет срок у уже выданных). Пусто = сделать всем бессрочно.
-  async function applyBulkDays() {
-    const res = await grantAllMaterials(
-      email,
-      bulkDays ? Number(bulkDays) : undefined
-    );
+  async function revokeAll() {
+    if (!confirm("Снять у клиента все материалы?")) return;
+    const res = await revokeAllMaterials(email);
     if (res.success) await load();
     else alert(res.error || "Ошибка");
   }
@@ -311,19 +307,8 @@ export function ClientCard({ email }: { email: string }) {
           </p>
         ) : (
           <>
-            <div className="mb-3 flex flex-wrap items-center gap-3 bg-white border border-[#302012]/30 rounded p-3">
-              <label className="flex items-center gap-2 text-sm text-[#302012] cursor-pointer font-medium">
-                <input
-                  type="checkbox"
-                  checked={card.materialsLibrary.every((m) =>
-                    card.materialGrants.some((g) => g.material_id === m.id)
-                  )}
-                  onChange={(e) => toggleAllMat(!e.target.checked)}
-                  className="w-4 h-4"
-                />
-                Отметить все
-              </label>
-              <span className="flex items-center gap-2 text-sm text-[#302012]/70">
+            <div className="mb-3 bg-white border border-[#302012]/30 rounded p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-[#302012]/70">
                 Срок:
                 <Input
                   type="number"
@@ -333,15 +318,41 @@ export function ClientCard({ email }: { email: string }) {
                   className={`${inputCls} w-24`}
                   placeholder="дней"
                 />
+                <span className="text-[#302012]/50">пусто = бессрочно</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-[#302012] font-medium">
+                  Выдать всё:
+                </span>
                 <button
                   type="button"
-                  onClick={applyBulkDays}
-                  className="text-sm underline text-[#302012] font-medium whitespace-nowrap"
+                  onClick={() => grantByProgram("smoking")}
+                  className="px-3 py-1.5 text-sm bg-[#302012] text-[#F5F3ED] rounded hover:bg-[#302012]/90"
                 >
-                  Задать срок всем
+                  Курение
                 </button>
-                <span className="text-[#302012]/50">пусто = бессрочно</span>
-              </span>
+                <button
+                  type="button"
+                  onClick={() => grantByProgram("sugar")}
+                  className="px-3 py-1.5 text-sm bg-[#302012] text-[#F5F3ED] rounded hover:bg-[#302012]/90"
+                >
+                  Сахар/угл.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => grantByProgram()}
+                  className="px-3 py-1.5 text-sm bg-[#302012]/70 text-[#F5F3ED] rounded hover:bg-[#302012]/90"
+                >
+                  Все программы
+                </button>
+                <button
+                  type="button"
+                  onClick={revokeAll}
+                  className="px-3 py-1.5 text-sm underline text-red-700"
+                >
+                  Снять всё
+                </button>
+              </div>
             </div>
             <ul className="space-y-2">
             {card.materialsLibrary.map((m) => {

@@ -40,6 +40,7 @@ import {
   createMaterialUpload,
   saveMaterial,
   saveMaterialLink,
+  saveMaterialTrigger,
   updateMaterial,
   deleteMaterial,
 } from "@/app/actions/admin";
@@ -102,7 +103,7 @@ export default function AdminPage() {
     audioFile: null as File | null,
   });
 
-  // Библиотека материалов (видео/pdf/документы/ссылки)
+  // Библиотека материалов (видео/pdf/документы/ссылки/триггеры)
   const [materials, setMaterials] = useState<
     {
       id: string;
@@ -110,6 +111,8 @@ export default function AdminPage() {
       kind: string;
       url: string | null;
       description: string | null;
+      program: string | null;
+      body: string | null;
     }[]
   >([]);
   const [isUploadingMat, setIsUploadingMat] = useState(false);
@@ -119,6 +122,8 @@ export default function AdminPage() {
     file: null as File | null,
     url: "",
     description: "",
+    program: "both",
+    body: "",
   });
   const [editMatId, setEditMatId] = useState<string | null>(null);
   const [editMat, setEditMat] = useState({
@@ -127,6 +132,8 @@ export default function AdminPage() {
     url: "",
     kind: "",
     file: null as File | null,
+    program: "both",
+    body: "",
   });
   const [accessForm, setAccessForm] = useState({
     userEmail: "",
@@ -277,6 +284,8 @@ export default function AdminPage() {
           kind: string;
           url: string | null;
           description: string | null;
+          program: string | null;
+          body: string | null;
         }[]
       );
   }
@@ -287,6 +296,8 @@ export default function AdminPage() {
     kind: string;
     url: string | null;
     description: string | null;
+    program: string | null;
+    body: string | null;
   }) {
     setEditMatId(m.id);
     setEditMat({
@@ -295,6 +306,8 @@ export default function AdminPage() {
       url: m.url || "",
       kind: m.kind,
       file: null,
+      program: m.program || "both",
+      body: m.body || "",
     });
   }
 
@@ -306,7 +319,11 @@ export default function AdminPage() {
     setIsUploadingMat(true);
     try {
       let newPath: string | undefined;
-      if (editMat.kind !== "link" && editMat.file) {
+      if (
+        editMat.kind !== "link" &&
+        editMat.kind !== "trigger" &&
+        editMat.file
+      ) {
         const prep = await createMaterialUpload(editMat.file.name);
         if (!prep.success || !prep.path || !prep.token) {
           alert(prep.error || "Не удалось подготовить загрузку");
@@ -328,7 +345,9 @@ export default function AdminPage() {
         editMat.title,
         editMat.description,
         editMat.kind === "link" ? editMat.url : undefined,
-        newPath
+        newPath,
+        editMat.program,
+        editMat.kind === "trigger" ? editMat.body : undefined
       );
       if (res.success) {
         setEditMatId(null);
@@ -349,7 +368,22 @@ export default function AdminPage() {
     }
     setIsUploadingMat(true);
     try {
-      if (matForm.kind === "link") {
+      if (matForm.kind === "trigger") {
+        if (!matForm.body.trim()) {
+          alert("Введите текст триггера");
+          return;
+        }
+        const res = await saveMaterialTrigger(
+          matForm.title,
+          matForm.body,
+          matForm.program,
+          matForm.description
+        );
+        if (!res.success) {
+          alert(res.error || "Ошибка");
+          return;
+        }
+      } else if (matForm.kind === "link") {
         if (!matForm.url.trim()) {
           alert("Укажите ссылку");
           return;
@@ -357,7 +391,8 @@ export default function AdminPage() {
         const res = await saveMaterialLink(
           matForm.title,
           matForm.url,
-          matForm.description
+          matForm.description,
+          matForm.program
         );
         if (!res.success) {
           alert(res.error || "Ошибка");
@@ -386,7 +421,8 @@ export default function AdminPage() {
           matForm.title,
           matForm.kind,
           prep.path,
-          matForm.description
+          matForm.description,
+          matForm.program
         );
         if (!res.success) {
           alert(res.error || "Ошибка");
@@ -399,6 +435,8 @@ export default function AdminPage() {
         file: null,
         url: "",
         description: "",
+        program: "both",
+        body: "",
       });
       await loadMaterials();
     } catch (err) {
@@ -1274,22 +1312,51 @@ export default function AdminPage() {
                     placeholder="Пара строк — о чём видео (видно клиенту в видеотеке)"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[#302012]">Тип</Label>
-                  <select
-                    value={matForm.kind}
-                    onChange={(e) =>
-                      setMatForm({ ...matForm, kind: e.target.value })
-                    }
-                    className="w-full bg-white border border-[#302012] text-[#302012] rounded px-3 py-2 text-base"
-                  >
-                    <option value="video">Видео</option>
-                    <option value="pdf">PDF</option>
-                    <option value="document">Документ</option>
-                    <option value="link">Ссылка</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[#302012]">Тип</Label>
+                    <select
+                      value={matForm.kind}
+                      onChange={(e) =>
+                        setMatForm({ ...matForm, kind: e.target.value })
+                      }
+                      className="w-full bg-white border border-[#302012] text-[#302012] rounded px-3 py-2 text-base"
+                    >
+                      <option value="video">Видео (наше)</option>
+                      <option value="link">Видео с YouTube / ссылка</option>
+                      <option value="trigger">Триггер (текст)</option>
+                      <option value="pdf">PDF</option>
+                      <option value="document">Документ</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[#302012]">Программа</Label>
+                    <select
+                      value={matForm.program}
+                      onChange={(e) =>
+                        setMatForm({ ...matForm, program: e.target.value })
+                      }
+                      className="w-full bg-white border border-[#302012] text-[#302012] rounded px-3 py-2 text-base"
+                    >
+                      <option value="both">Обе (для всех)</option>
+                      <option value="smoking">Курение</option>
+                      <option value="sugar">Сахар / углеводы</option>
+                    </select>
+                  </div>
                 </div>
-                {matForm.kind === "link" ? (
+                {matForm.kind === "trigger" ? (
+                  <div className="space-y-2">
+                    <Label className="text-[#302012]">Текст триггера *</Label>
+                    <Textarea
+                      value={matForm.body}
+                      onChange={(e) =>
+                        setMatForm({ ...matForm, body: e.target.value })
+                      }
+                      className={`${inputCls} min-h-[140px]`}
+                      placeholder="Текст, который клиент прочитает в этом триггере…"
+                    />
+                  </div>
+                ) : matForm.kind === "link" ? (
                   <div className="space-y-2">
                     <Label className="text-[#302012]">Ссылка *</Label>
                     <Input
@@ -1360,7 +1427,30 @@ export default function AdminPage() {
                             className={`${inputCls} min-h-[70px]`}
                             placeholder="Короткое описание"
                           />
-                          {editMat.kind === "link" ? (
+                          <select
+                            value={editMat.program}
+                            onChange={(e) =>
+                              setEditMat({
+                                ...editMat,
+                                program: e.target.value,
+                              })
+                            }
+                            className="w-full bg-white border border-[#302012] text-[#302012] rounded px-3 py-2 text-base"
+                          >
+                            <option value="both">Обе (для всех)</option>
+                            <option value="smoking">Курение</option>
+                            <option value="sugar">Сахар / углеводы</option>
+                          </select>
+                          {editMat.kind === "trigger" ? (
+                            <Textarea
+                              value={editMat.body}
+                              onChange={(e) =>
+                                setEditMat({ ...editMat, body: e.target.value })
+                              }
+                              className={`${inputCls} min-h-[140px]`}
+                              placeholder="Текст триггера"
+                            />
+                          ) : editMat.kind === "link" ? (
                             <Input
                               type="url"
                               value={editMat.url}
@@ -1413,8 +1503,15 @@ export default function AdminPage() {
                                 video: "Видео",
                                 pdf: "PDF",
                                 document: "Документ",
-                                link: "Ссылка",
+                                link: "Видео/ссылка",
+                                trigger: "Триггер",
                               } as Record<string, string>)[m.kind] || m.kind}
+                              {" · "}
+                              {({
+                                smoking: "Курение",
+                                sugar: "Сахар/угл.",
+                                both: "Обе программы",
+                              } as Record<string, string>)[m.program || "both"]}
                             </span>
                             <p className="font-medium">{m.title}</p>
                             {m.description && (
