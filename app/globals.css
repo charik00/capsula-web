@@ -56,7 +56,7 @@ html {
 .uwaw,
 uw-launcher,
 .uw-launcher {
-  top: 4px !important;
+  top: calc(env(safe-area-inset-top, 0px) + 4px) !important;
   bottom: auto !important;
 }
 /* Скрыть вторую (дублирующую) кнопку «озвучить» — она висела ниже

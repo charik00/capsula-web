@@ -42,7 +42,11 @@ export function PWA() {
           target = target.parentElement;
         }
         const node = target && target !== document.body ? target : el;
-        node.style.setProperty("top", "4px", "important");
+        node.style.setProperty(
+          "top",
+          "calc(env(safe-area-inset-top, 0px) + 4px)",
+          "important"
+        );
         node.style.setProperty("bottom", "auto", "important");
         return true;
       }

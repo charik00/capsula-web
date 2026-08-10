@@ -200,7 +200,10 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   };
 
   return (
-    <div className="min-h-screen pb-24">
+    <div
+      className="min-h-screen"
+      style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
+    >
       <div className="mb-6 pr-16">
         <p className="text-[#302012]/70">{greeting}</p>
         <button
@@ -432,7 +435,10 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       )}
 
       {/* Нижнее меню */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#302012] flex z-40">
+      <nav
+        className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#302012] flex z-40"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         {TABS.map(({ key, label, Icon }) => (
           <button
             key={key}

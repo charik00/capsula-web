@@ -31,7 +31,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F3ED]">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div
+        className="container mx-auto px-4 pb-6 max-w-4xl"
+        style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.5rem)" }}
+      >
         <h1 className="text-3xl font-light text-[#302012] mb-4">
           Личный кабинет
         </h1>
