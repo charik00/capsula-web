@@ -81,7 +81,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string[]>([]);
-  const [openTrigger, setOpenTrigger] = useState<MyFile | null>(null);
+  const [openText, setOpenText] = useState<MyFile | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -305,7 +305,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
             {triggers.map((f) => (
               <button
                 key={f.id}
-                onClick={() => setOpenTrigger(f)}
+                onClick={() => setOpenText(f)}
                 className="w-full text-left bg-white border-2 border-[#302012] p-4 rounded-lg hover:bg-[#302012]/5 transition-colors"
               >
                 <p className="font-medium text-[#302012]">{f.title}</p>
@@ -371,7 +371,14 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
                     </p>
                   )}
                 </div>
-                {f.kind === "link" && f.url ? (
+                {f.body ? (
+                  <button
+                    onClick={() => setOpenText(f)}
+                    className="px-4 py-2 bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90 text-sm shrink-0"
+                  >
+                    Читать
+                  </button>
+                ) : f.kind === "link" && f.url ? (
                   <a
                     href={f.url}
                     target="_blank"
@@ -395,11 +402,11 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
           </div>
         ))}
 
-      {/* Модалка триггера */}
-      {openTrigger && (
+      {/* Модалка текста (триггер / памятка) */}
+      {openText && (
         <div
           className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          onClick={() => setOpenTrigger(null)}
+          onClick={() => setOpenText(null)}
         >
           <div
             className="bg-[#F5F3ED] w-full sm:max-w-lg sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto"
@@ -407,10 +414,10 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
           >
             <div className="flex items-start justify-between gap-3 p-5 border-b border-[#302012]/15 sticky top-0 bg-[#F5F3ED]">
               <h3 className="text-lg font-medium text-[#302012]">
-                {openTrigger.title}
+                {openText.title}
               </h3>
               <button
-                onClick={() => setOpenTrigger(null)}
+                onClick={() => setOpenText(null)}
                 aria-label="Закрыть"
                 className="text-[#302012] hover:bg-[#302012]/10 rounded-full w-8 h-8 flex items-center justify-center shrink-0"
               >
@@ -418,7 +425,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
               </button>
             </div>
             <div className="p-5 text-[#302012] whitespace-pre-wrap leading-relaxed">
-              {openTrigger.body}
+              {openText.body}
             </div>
           </div>
         </div>
