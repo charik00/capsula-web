@@ -429,11 +429,15 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       {/* Модалка текста (триггер / памятка) */}
       {openText && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
+          style={{
+            padding:
+              "calc(env(safe-area-inset-top) + 1rem) 1rem calc(env(safe-area-inset-bottom) + 1rem)",
+          }}
           onClick={() => setOpenText(null)}
         >
           <div
-            className="bg-[#F5F3ED] w-full sm:max-w-lg sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto overscroll-contain"
+            className="bg-[#F5F3ED] w-full max-w-lg rounded-2xl max-h-full overflow-y-auto overscroll-contain shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 p-5 border-b border-[#302012]/15 sticky top-0 bg-[#F5F3ED]">
