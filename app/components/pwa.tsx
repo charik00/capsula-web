@@ -20,6 +20,39 @@ export function PWA() {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
 
+    // Поднять кнопку доступности (UserWay) к верхнему краю: находим её
+    // фиксированный контейнер и задаём top напрямую (перекрывает отступ
+    // из настроек виджета).
+    const raiseA11y = (): boolean => {
+      const sels = [
+        "#userwayAccessibilityIcon",
+        ".userway_buttons_wrapper",
+        ".uwaw",
+        "uw-launcher",
+        ".uw-launcher",
+        '[aria-label*="ccessibility" i]',
+        '[aria-label*="оступ" i]',
+      ];
+      for (const s of sels) {
+        const el = document.querySelector<HTMLElement>(s);
+        if (!el) continue;
+        let target: HTMLElement | null = el;
+        while (target && target !== document.body) {
+          if (getComputedStyle(target).position === "fixed") break;
+          target = target.parentElement;
+        }
+        const node = target && target !== document.body ? target : el;
+        node.style.setProperty("top", "4px", "important");
+        node.style.setProperty("bottom", "auto", "important");
+        return true;
+      }
+      return false;
+    };
+    let tries = 0;
+    const iv = window.setInterval(() => {
+      if (raiseA11y() || ++tries > 30) window.clearInterval(iv);
+    }, 400);
+
     if (localStorage.getItem("pwa-dismissed")) return;
 
     const onBIP = (e: Event) => {
@@ -40,7 +73,10 @@ export function PWA() {
       setShow(true);
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", onBIP);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBIP);
+      window.clearInterval(iv);
+    };
   }, []);
 
   const dismiss = () => {

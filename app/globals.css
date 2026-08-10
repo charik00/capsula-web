@@ -48,3 +48,14 @@ html {
   }
 }
 
+
+/* Кнопка доступности (UserWay) — прижать к верхнему краю, чтобы не
+   перекрывала заголовок и всплывающие окна */
+#userwayAccessibilityIcon,
+.userway_buttons_wrapper,
+.uwaw,
+uw-launcher,
+.uw-launcher {
+  top: 4px !important;
+  bottom: auto !important;
+}
