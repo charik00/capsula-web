@@ -59,3 +59,8 @@ uw-launcher,
   top: 4px !important;
   bottom: auto !important;
 }
+/* Скрыть вторую (дублирующую) кнопку «озвучить» — она висела ниже
+   и перекрывала контент; основная кнопка доступности остаётся */
+#userwayLstIcon {
+  display: none !important;
+}
