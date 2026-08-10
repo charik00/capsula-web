@@ -64,3 +64,11 @@ uw-launcher,
 #userwayLstIcon {
   display: none !important;
 }
+
+/* Пока открыто модальное окно (триггер/памятка) — прячем значок
+   доступности, чтобы он не мешал крестику закрытия */
+body.modal-open #userwayAccessibilityIcon,
+body.modal-open .userway_buttons_wrapper,
+body.modal-open .uwy.userway_p1 {
+  display: none !important;
+}

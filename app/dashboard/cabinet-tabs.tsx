@@ -107,12 +107,14 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
     body.style.left = "0";
     body.style.right = "0";
     body.style.width = "100%";
+    body.classList.add("modal-open");
     return () => {
       body.style.position = "";
       body.style.top = "";
       body.style.left = "";
       body.style.right = "";
       body.style.width = "";
+      body.classList.remove("modal-open");
       window.scrollTo(0, scrollY);
     };
   }, [openText]);
