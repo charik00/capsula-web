@@ -201,11 +201,11 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
 
   return (
     <div className="min-h-screen pb-24">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 pr-16">
         <p className="text-[#302012]/70">{greeting}</p>
         <button
           onClick={signOut}
-          className="text-sm text-[#302012]/70 hover:text-[#302012] underline"
+          className="text-sm text-[#302012]/60 hover:text-[#302012] underline mt-1"
         >
           Выйти
         </button>
