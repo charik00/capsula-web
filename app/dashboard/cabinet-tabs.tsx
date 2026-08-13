@@ -84,6 +84,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   const [openText, setOpenText] = useState<MyFile | null>(null);
   const [openPdf, setOpenPdf] = useState<MyFile | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfIsImage, setPdfIsImage] = useState(false);
   const [activeProgram, setActiveProgram] = useState<string>("");
 
   useEffect(() => {
@@ -160,7 +161,9 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
     try {
       const url = await getSignedUrl(f.id);
       if (url) {
-        setPdfUrl(`${url}#toolbar=0`);
+        const isImg = /\.(jpe?g|png|webp)(\?|$)/i.test(url.split("?")[0]);
+        setPdfIsImage(isImg);
+        setPdfUrl(isImg ? url : `${url}#toolbar=0`);
         setOpenPdf(f);
       } else alert("Не удалось открыть файл");
     } catch {
@@ -530,11 +533,23 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
             </button>
           </div>
           {pdfUrl ? (
-            <iframe
-              src={pdfUrl}
-              title={openPdf.title}
-              className="flex-1 w-full border-0 bg-white"
-            />
+            pdfIsImage ? (
+              <div className="flex-1 overflow-y-auto overscroll-contain bg-[#F5F3ED]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={pdfUrl}
+                  alt={openPdf.title}
+                  className="w-full block select-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              </div>
+            ) : (
+              <iframe
+                src={pdfUrl}
+                title={openPdf.title}
+                className="flex-1 w-full border-0 bg-white"
+              />
+            )
           ) : (
             <div className="flex-1 flex items-center justify-center text-[#F5F3ED]">
               Загрузка…
