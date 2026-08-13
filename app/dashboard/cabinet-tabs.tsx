@@ -82,6 +82,8 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string[]>([]);
   const [openText, setOpenText] = useState<MyFile | null>(null);
+  const [openPdf, setOpenPdf] = useState<MyFile | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [activeProgram, setActiveProgram] = useState<string>("");
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   // Пока открыто окно с текстом — блокируем прокрутку фона (iOS-надёжно:
   // фиксируем body и возвращаем позицию при закрытии).
   useEffect(() => {
-    if (!openText) return;
+    if (!openText && !openPdf) return;
     const scrollY = window.scrollY;
     const body = document.body;
     body.style.position = "fixed";
@@ -118,7 +120,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       body.classList.remove("modal-open");
       window.scrollTo(0, scrollY);
     };
-  }, [openText]);
+  }, [openText, openPdf]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -151,6 +153,22 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       delete next[id];
       return next;
     });
+
+  // Открыть PDF/документ во встроенном окне (внутри приложения, с «Закрыть»)
+  const openPdfFile = async (f: MyFile) => {
+    setOpeningId(f.id);
+    try {
+      const url = await getSignedUrl(f.id);
+      if (url) {
+        setPdfUrl(`${url}#toolbar=0`);
+        setOpenPdf(f);
+      } else alert("Не удалось открыть файл");
+    } catch {
+      alert("Ошибка сети");
+    } finally {
+      setOpeningId(null);
+    }
+  };
 
   // Программа материала / медитации (для разделения курение ↔ сахар)
   const matProgram = (f: MyFile) => f.program || "both";
@@ -475,19 +493,55 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
                     Перейти
                   </a>
                 ) : (
-                  <a
-                    href={`/dashboard/view/${f.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => openPdfFile(f)}
+                    disabled={openingId === f.id}
                     className="px-4 py-2 bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90 text-sm shrink-0"
                   >
-                    Открыть
-                  </a>
+                    {openingId === f.id ? "Загрузка…" : "Открыть"}
+                  </button>
                 )}
               </div>
             ))}
           </div>
         ))}
+
+      {/* Просмотр PDF/документа во весь экран (внутри приложения) */}
+      {openPdf && (
+        <div
+          className="fixed inset-0 z-50 bg-[#302012] flex flex-col"
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <p className="text-[#F5F3ED] font-medium truncate">
+              {openPdf.title}
+            </p>
+            <button
+              onClick={() => {
+                setOpenPdf(null);
+                setPdfUrl(null);
+              }}
+              className="shrink-0 flex items-center gap-1.5 text-sm text-[#302012] bg-[#F5F3ED] px-3 py-1.5 rounded font-medium"
+            >
+              <X className="w-4 h-4" /> Закрыть
+            </button>
+          </div>
+          {pdfUrl ? (
+            <iframe
+              src={pdfUrl}
+              title={openPdf.title}
+              className="flex-1 w-full border-0 bg-white"
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-[#F5F3ED]">
+              Загрузка…
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Модалка текста (триггер / памятка) */}
       {openText && (
