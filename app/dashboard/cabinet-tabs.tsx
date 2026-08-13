@@ -175,7 +175,12 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   const active = activeProgram || programs[0] || "";
   const inProgram = (p: string) => !active || p === "both" || p === active;
 
-  const shownMeds = meds.filter((m) => inProgram(medProgram(m)));
+  // Главная медитация программы («Программа …») — всегда сверху
+  const isMainMed = (m: MyMeditation) =>
+    m.title.trim().toLowerCase().startsWith("программа");
+  const shownMeds = meds
+    .filter((m) => inProgram(medProgram(m)))
+    .sort((a, b) => (isMainMed(a) ? 0 : 1) - (isMainMed(b) ? 0 : 1));
   const shownFiles = files.filter((f) => inProgram(matProgram(f)));
 
   // «Ежедневная медитация» всегда первой в списке видео
