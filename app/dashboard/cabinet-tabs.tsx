@@ -82,6 +82,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string[]>([]);
   const [openText, setOpenText] = useState<MyFile | null>(null);
+  const [activeProgram, setActiveProgram] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -151,22 +152,53 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       return next;
     });
 
+  // Программа материала / медитации (для разделения курение ↔ сахар)
+  const matProgram = (f: MyFile) => f.program || "both";
+  const medProgram = (m: MyMeditation) => {
+    const t = m.title.toLowerCase();
+    if (/сахар|углевод/.test(t)) return "sugar";
+    if (/курен/.test(t)) return "smoking";
+    return "both";
+  };
+  // Какие программы реально есть у клиента
+  const progSet = new Set<string>();
+  meds.forEach((m) => {
+    const p = medProgram(m);
+    if (p !== "both") progSet.add(p);
+  });
+  files.forEach((f) => {
+    const p = matProgram(f);
+    if (p !== "both") progSet.add(p);
+  });
+  const programs = ["smoking", "sugar"].filter((p) => progSet.has(p));
+  const showSelector = programs.length > 1;
+  const active = activeProgram || programs[0] || "";
+  const inProgram = (p: string) => !active || p === "both" || p === active;
+
+  const shownMeds = meds.filter((m) => inProgram(medProgram(m)));
+  const shownFiles = files.filter((f) => inProgram(matProgram(f)));
+
   // «Ежедневная медитация» всегда первой в списке видео
   const isDaily = (f: MyFile) =>
     f.title.trim().toLowerCase().includes("ежедневная медитация");
-  const videos = files
+  const videos = shownFiles
     .filter((f) => f.kind === "video")
     .sort((a, b) => (isDaily(a) ? 0 : 1) - (isDaily(b) ? 0 : 1));
-  const triggers = files.filter((f) => f.kind === "trigger");
-  const youtube = files.filter(
+  const triggers = shownFiles.filter((f) => f.kind === "trigger");
+  const youtube = shownFiles.filter(
     (f) => f.kind === "link" && !!f.url && !!embedUrl(f.url)
   );
-  const docs = files.filter(
+  const docs = shownFiles.filter(
     (f) =>
       f.kind !== "video" &&
       f.kind !== "trigger" &&
       !(f.kind === "link" && f.url && embedUrl(f.url))
   );
+
+  const PROGRAM_LABELS: Record<string, string> = {
+    smoking: "Курение",
+    sugar: "Сахар и углеводы",
+  };
 
   const TABS: { key: TabKey; label: string; Icon: typeof Video }[] = [
     { key: "meditations", label: "Медитации", Icon: Headphones },
@@ -232,7 +264,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       className="min-h-screen"
       style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
     >
-      <div className="mb-6 pr-16">
+      <div className="mb-4 pr-16">
         <p className="text-[#302012]/70">{greeting}</p>
         <button
           onClick={signOut}
@@ -242,15 +274,34 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
         </button>
       </div>
 
+      {/* Переключатель программ (если куплены обе) */}
+      {showSelector && (
+        <div className="flex gap-2 mb-6 bg-white border-2 border-[#302012] rounded-lg p-1">
+          {programs.map((p) => (
+            <button
+              key={p}
+              onClick={() => setActiveProgram(p)}
+              className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                active === p
+                  ? "bg-[#302012] text-[#F5F3ED]"
+                  : "text-[#302012] hover:bg-[#302012]/10"
+              }`}
+            >
+              {PROGRAM_LABELS[p] || p}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Медитации */}
       {tab === "meditations" &&
         (!medAllowed ? (
           <Empty text="Доступ ещё не открыт. Свяжитесь с нами, чтобы получить доступ." />
-        ) : meds.length === 0 ? (
+        ) : shownMeds.length === 0 ? (
           <Empty text="У вас пока нет доступных медитаций" />
         ) : (
           <div className="space-y-6">
-            {meds.map((m) => (
+            {shownMeds.map((m) => (
               <div key={m.id}>
                 <AudioPlayer meditationId={m.id} title={m.title} />
                 {m.description && (
