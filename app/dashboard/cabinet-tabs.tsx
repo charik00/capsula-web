@@ -151,7 +151,12 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       return next;
     });
 
-  const videos = files.filter((f) => f.kind === "video");
+  // «Ежедневная медитация» всегда первой в списке видео
+  const isDaily = (f: MyFile) =>
+    f.title.trim().toLowerCase().includes("ежедневная медитация");
+  const videos = files
+    .filter((f) => f.kind === "video")
+    .sort((a, b) => (isDaily(a) ? 0 : 1) - (isDaily(b) ? 0 : 1));
   const triggers = files.filter((f) => f.kind === "trigger");
   const youtube = files.filter(
     (f) => f.kind === "link" && !!f.url && !!embedUrl(f.url)
