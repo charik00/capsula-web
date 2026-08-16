@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { extractDocText } from "@/lib/extract-text";
 
 const ADMIN_EMAILS = [
   "info@capsulaisrael.com",
@@ -655,6 +656,8 @@ export async function saveMaterial(
   if (!title.trim() || !path) {
     return { success: false, error: "Заполните название и выберите файл" };
   }
+  // Word/PDF/txt — сразу извлекаем читаемый текст (клиент читает в окне)
+  const body = await extractDocText(path);
   const { error } = await supabaseAdmin.from("materials").insert([
     {
       title: title.trim(),
@@ -662,6 +665,7 @@ export async function saveMaterial(
       path,
       description: description?.trim() || null,
       program: program || "both",
+      body,
     },
   ]);
   if (error) return { success: false, error: error.message };
@@ -750,7 +754,10 @@ export async function updateMaterial(
     description: description?.trim() || null,
   };
   if (url !== undefined) patch.url = url.trim() || null;
-  if (newPath) patch.path = newPath;
+  if (newPath) {
+    patch.path = newPath;
+    patch.body = await extractDocText(newPath); // заново извлекаем текст
+  }
   if (program !== undefined) patch.program = program || "both";
   if (body !== undefined) patch.body = body.trim() || null;
 
