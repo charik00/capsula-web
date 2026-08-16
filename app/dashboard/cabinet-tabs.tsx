@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { AudioPlayer } from "@/app/components/audio-player";
+import { PdfView } from "@/app/components/pdf-view";
 import {
   getMyMeditations,
   getMyMaterials,
@@ -163,7 +164,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       if (url) {
         const isImg = /\.(jpe?g|png|webp)(\?|$)/i.test(url.split("?")[0]);
         setPdfIsImage(isImg);
-        setPdfUrl(isImg ? url : `${url}#toolbar=0`);
+        setPdfUrl(url);
         setOpenPdf(f);
       } else alert("Не удалось открыть файл");
     } catch {
@@ -544,11 +545,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
                 />
               </div>
             ) : (
-              <iframe
-                src={pdfUrl}
-                title={openPdf.title}
-                className="flex-1 w-full border-0 bg-white"
-              />
+              <PdfView url={pdfUrl} />
             )
           ) : (
             <div className="flex-1 flex items-center justify-center text-[#F5F3ED]">
