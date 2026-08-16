@@ -340,6 +340,14 @@ export default function AdminPage() {
         }
         newPath = prep.path;
       }
+      // текст правим, только если не заменяли файл (иначе текст берётся из
+      // нового файла); для триггеров и документов с текстом — из поля
+      const bodyArg =
+        newPath || editMat.file
+          ? undefined
+          : editMat.kind === "trigger" || editMat.body
+          ? editMat.body
+          : undefined;
       const res = await updateMaterial(
         id,
         editMat.title,
@@ -347,7 +355,7 @@ export default function AdminPage() {
         editMat.kind === "link" ? editMat.url : undefined,
         newPath,
         editMat.program,
-        editMat.kind === "trigger" ? editMat.body : undefined
+        bodyArg
       );
       if (res.success) {
         setEditMatId(null);
@@ -1461,20 +1469,43 @@ export default function AdminPage() {
                               placeholder="Ссылка"
                             />
                           ) : (
-                            <div>
-                              <p className="text-xs text-[#302012]/50 mb-1">
-                                Заменить файл (по желанию):
-                              </p>
-                              <Input
-                                type="file"
-                                onChange={(e) =>
-                                  setEditMat({
-                                    ...editMat,
-                                    file: e.target.files?.[0] || null,
-                                  })
-                                }
-                                className={inputCls}
-                              />
+                            <div className="space-y-3">
+                              {editMat.body ? (
+                                <div>
+                                  <p className="text-xs text-[#302012]/50 mb-1">
+                                    Текст, который читает клиент (можно
+                                    редактировать):
+                                  </p>
+                                  <Textarea
+                                    value={editMat.body}
+                                    onChange={(e) =>
+                                      setEditMat({
+                                        ...editMat,
+                                        body: e.target.value,
+                                      })
+                                    }
+                                    className={`${inputCls} min-h-[220px]`}
+                                    placeholder="Текст документа"
+                                  />
+                                </div>
+                              ) : null}
+                              <div>
+                                <p className="text-xs text-[#302012]/50 mb-1">
+                                  {editMat.body
+                                    ? "Или заменить файл целиком (текст возьмётся из нового файла):"
+                                    : "Заменить файл (по желанию):"}
+                                </p>
+                                <Input
+                                  type="file"
+                                  onChange={(e) =>
+                                    setEditMat({
+                                      ...editMat,
+                                      file: e.target.files?.[0] || null,
+                                    })
+                                  }
+                                  className={inputCls}
+                                />
+                              </div>
                             </div>
                           )}
                           <div className="flex gap-2">
