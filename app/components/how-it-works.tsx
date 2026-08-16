@@ -46,6 +46,17 @@ export function HowItWorks() {
             </div>
           ))}
         </div>
+
+        <div className="text-center">
+          <a
+            href="/zaklyuchenie-capsula.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 border-2 border-[#302012] text-[#302012] px-6 py-3 rounded hover:bg-[#302012] hover:text-[#F5F3ED] transition-colors text-base md:text-lg"
+          >
+            📄 Экспертное заключение о проекте «Капсула»
+          </a>
+        </div>
         </div>
       </FadeInUp>
     </section>
