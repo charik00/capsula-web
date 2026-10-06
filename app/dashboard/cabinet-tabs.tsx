@@ -129,8 +129,15 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
     window.location.href = "/login";
   };
 
-  const getSignedUrl = async (id: string): Promise<string | null> => {
+  const getSignedUrl = async (
+    id: string,
+    retried = false
+  ): Promise<string | null> => {
     const res = await fetch(`/api/file/${id}`, { cache: "no-store" });
+    if (res.status === 401 && !retried) {
+      await supabase.auth.refreshSession().catch(() => {});
+      return getSignedUrl(id, true);
+    }
     if (!res.ok) return null;
     const { url } = await res.json();
     return url || null;

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
+import { supabase } from "@/lib/supabase/client";
 
 interface AudioPlayerProps {
   meditationId: string;
@@ -111,7 +112,7 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
     audio.volume = isMuted ? 0 : volume;
   }, [volume, isMuted]);
 
-  const resolveSrc = async (): Promise<boolean> => {
+  const resolveSrc = async (retried = false): Promise<boolean> => {
     if (srcLoadedRef.current) return true;
     setIsResolving(true);
     setError(null);
@@ -120,8 +121,17 @@ export function AudioPlayer({ meditationId, title }: AudioPlayerProps) {
         cache: "no-store",
       });
       if (!res.ok) {
+        // Сессия устарела — пробуем обновить токен и повторить один раз
+        if (res.status === 401 && !retried) {
+          await supabase.auth.refreshSession().catch(() => {});
+          return resolveSrc(true);
+        }
         const body = await res.json().catch(() => ({}));
-        setError(body.error || "Не удалось загрузить медитацию");
+        const msg =
+          res.status === 401
+            ? "Сессия истекла. Обновите страницу (потяните вниз) или войдите заново."
+            : body.error || "Не удалось загрузить медитацию";
+        setError(msg);
         return false;
       }
       const { url } = await res.json();
