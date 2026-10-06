@@ -30,14 +30,17 @@ export async function GET(
     return NextResponse.json({ error: "Доступ не открыт" }, { status: 403 });
   }
 
-  // 3. Доступ к этой медитации не просрочен
-  const { data: access } = await supabaseAdmin
+  // 3. Доступ к этой медитации не просрочен (берём самый поздний срок —
+  //    устойчиво к задвоенным записям доступа)
+  const { data: accessRows } = await supabaseAdmin
     .from("user_access")
     .select("expires_at")
     .eq("user_email", email)
     .eq("meditation_id", id)
     .gte("expires_at", new Date().toISOString())
-    .maybeSingle();
+    .order("expires_at", { ascending: false })
+    .limit(1);
+  const access = accessRows?.[0];
 
   if (!access) {
     return NextResponse.json(

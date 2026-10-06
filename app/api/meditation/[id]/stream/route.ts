@@ -56,14 +56,16 @@ export async function GET(
     return new NextResponse("Доступ не открыт", { status: 403 });
   }
 
-  // 3. Доступ к этой медитации не просрочен
-  const { data: access } = await supabaseAdmin
+  // 3. Доступ к этой медитации не просрочен (устойчиво к дублям)
+  const { data: accessRows } = await supabaseAdmin
     .from("user_access")
     .select("expires_at")
     .eq("user_email", email)
     .eq("meditation_id", id)
     .gte("expires_at", new Date().toISOString())
-    .maybeSingle();
+    .order("expires_at", { ascending: false })
+    .limit(1);
+  const access = accessRows?.[0];
   if (!access) {
     return new NextResponse("Доступ к медитации истёк или не выдан", {
       status: 403,

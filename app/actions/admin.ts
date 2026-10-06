@@ -180,6 +180,14 @@ export async function grantAccess(
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + n);
 
+  // Убираем старую запись этой пары, чтобы не плодить дубли
+  // (иначе проверка доступа падает на двух записях)
+  await supabaseAdmin
+    .from("user_access")
+    .delete()
+    .eq("user_email", clean)
+    .eq("meditation_id", meditationId);
+
   const { error } = await supabaseAdmin.from("user_access").insert([
     {
       user_email: clean,
