@@ -507,6 +507,11 @@ export default function AdminPage() {
     if (res.success) setQuestionnaires(res.data as Questionnaire[]);
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/admin-login");
+  }
+
   async function handleUploadMeditation(e: React.FormEvent) {
     e.preventDefault();
     if (!meditationForm.title || !meditationForm.audioFile) {
@@ -622,30 +627,41 @@ export default function AdminPage() {
   const btnCls = "w-full bg-[#302012] text-[#F5F3ED] hover:bg-[#302012]/90";
 
   return (
-    <div className="min-h-screen bg-[#F5F3ED] py-8 px-4">
+    <div
+      className="min-h-screen bg-[#F5F3ED] px-4 pb-10 overflow-x-hidden"
+      style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.5rem)" }}
+    >
       <div className="container mx-auto max-w-6xl">
-        <h1 className="text-4xl font-light text-[#302012] mb-8">
-          Панель управления
-        </h1>
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <h1 className="text-2xl md:text-4xl font-light text-[#302012]">
+            Панель управления
+          </h1>
+          <button
+            onClick={handleSignOut}
+            className="shrink-0 rounded border border-[#302012] px-3 py-1.5 text-sm text-[#302012] hover:bg-[#302012] hover:text-[#F5F3ED] transition-colors"
+          >
+            Выйти
+          </button>
+        </div>
 
         <Tabs defaultValue="ankety" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 bg-white border-2 border-[#302012]">
-            <TabsTrigger value="ankety" className="text-[#302012]">
+          <TabsList className="grid grid-cols-3 md:grid-cols-6 h-auto w-full gap-1 bg-white border-2 border-[#302012] p-1">
+            <TabsTrigger value="ankety" className="text-[#302012] text-xs md:text-sm py-2">
               Анкеты
             </TabsTrigger>
-            <TabsTrigger value="clients" className="text-[#302012]">
+            <TabsTrigger value="clients" className="text-[#302012] text-xs md:text-sm py-2">
               Клиенты
             </TabsTrigger>
-            <TabsTrigger value="access" className="text-[#302012]">
+            <TabsTrigger value="access" className="text-[#302012] text-xs md:text-sm py-2">
               Доступы
             </TabsTrigger>
-            <TabsTrigger value="upload" className="text-[#302012]">
+            <TabsTrigger value="upload" className="text-[#302012] text-xs md:text-sm py-2">
               Медитация
             </TabsTrigger>
-            <TabsTrigger value="materials" className="text-[#302012]">
+            <TabsTrigger value="materials" className="text-[#302012] text-xs md:text-sm py-2">
               Материалы
             </TabsTrigger>
-            <TabsTrigger value="leads" className="text-[#302012]">
+            <TabsTrigger value="leads" className="text-[#302012] text-xs md:text-sm py-2">
               Заявки
             </TabsTrigger>
           </TabsList>
