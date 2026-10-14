@@ -14,6 +14,7 @@ export function PWA() {
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [show, setShow] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+  const [inApp, setInApp] = useState(false);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -72,7 +73,11 @@ export function PWA() {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       nav.standalone === true;
+    // встроенный браузер мессенджера (там нет «На экран Домой»)
+    const insideApp =
+      /FBAN|FBAV|FB_IAB|Instagram|Line\/|Twitter|MicroMessenger|GSA/i.test(ua);
     if (isIOS && !standalone) {
+      setInApp(insideApp);
       setIosHint(true);
       setShow(true);
     }
@@ -105,10 +110,19 @@ export function PWA() {
     <div className="fixed bottom-20 left-4 right-4 z-[60] max-w-md mx-auto bg-[#302012] text-[#F5F3ED] rounded-xl shadow-xl p-4 flex items-center gap-3">
       <div className="flex-1 text-sm leading-snug">
         {iosHint ? (
-          <>
-            Установите Capsula как приложение: нажмите{" "}
-            <b>Поделиться</b> ⬆️ → <b>«На экран Домой»</b>.
-          </>
+          inApp ? (
+            <>
+              Чтобы установить приложение, откройте сайт в <b>Safari</b>:
+              нажмите <b>⋯</b> (или значок Safari) → <b>«Открыть в Safari»</b>,
+              затем <b>Поделиться</b> ⬆️ → <b>«На экран Домой»</b>.
+            </>
+          ) : (
+            <>
+              Установите Capsula как приложение: <b>Поделиться</b> ⬆️ →{" "}
+              <b>«На экран Домой»</b>. Нет такого пункта? Откройте сайт в{" "}
+              <b>Safari</b>.
+            </>
+          )
         ) : (
           <>Установить Capsula как приложение на телефон?</>
         )}
