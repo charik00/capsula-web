@@ -83,6 +83,7 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string[]>([]);
   const [openText, setOpenText] = useState<MyFile | null>(null);
+  const [textVideoUrl, setTextVideoUrl] = useState<string | null>(null);
   const [openPdf, setOpenPdf] = useState<MyFile | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfIsImage, setPdfIsImage] = useState(false);
@@ -123,6 +124,15 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
       window.scrollTo(0, scrollY);
     };
   }, [openText, openPdf]);
+
+  // Видео триггера (если есть) — грузим при открытии окна
+  useEffect(() => {
+    setTextVideoUrl(null);
+    if (openText?.hasVideo) {
+      getSignedUrl(openText.id).then((u) => setTextVideoUrl(u));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openText]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -430,9 +440,19 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
                     {f.description}
                   </p>
                 )}
-                <span className="text-sm text-[#302012]/50 mt-1 inline-block">
-                  Открыть →
-                </span>
+                <div className="flex items-center gap-2 mt-2 text-xs">
+                  {f.hasVideo && (
+                    <span className="bg-[#302012]/10 text-[#302012] px-2 py-0.5 rounded">
+                      🎬 видео
+                    </span>
+                  )}
+                  {f.body && (
+                    <span className="bg-[#302012]/10 text-[#302012] px-2 py-0.5 rounded">
+                      📝 текст
+                    </span>
+                  )}
+                  <span className="text-[#302012]/50 ml-auto">Открыть →</span>
+                </div>
               </button>
             ))}
           </div>
@@ -588,8 +608,31 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-5 text-[#302012] whitespace-pre-wrap leading-relaxed">
-              {openText.body}
+            <div className="p-5 text-[#302012]">
+              {openText.hasVideo &&
+                (textVideoUrl ? (
+                  <video
+                    src={textVideoUrl}
+                    controls
+                    playsInline
+                    controlsList="nodownload"
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="w-full rounded mb-4 bg-black select-none"
+                  />
+                ) : (
+                  <div className="mb-4 text-[#302012]/50 text-sm">
+                    Загрузка видео…
+                  </div>
+                ))}
+              {openText.body ? (
+                <div className="whitespace-pre-wrap leading-relaxed">
+                  {openText.body}
+                </div>
+              ) : openText.hasVideo ? (
+                <p className="text-[#302012]/50 text-sm">
+                  Текст к этому триггеру скоро добавим.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

@@ -60,6 +60,7 @@ export interface MyFile {
   description: string | null;
   body: string | null;
   program: string | null;
+  hasVideo: boolean;
   created_at: string;
 }
 
@@ -92,9 +93,12 @@ export async function getMyMaterials(): Promise<MyFile[]> {
 
   const { data } = await supabaseAdmin
     .from("materials")
-    .select("id, title, kind, url, description, body, program, created_at")
+    .select("id, title, kind, url, description, body, program, path, created_at")
     .in("id", ids)
     .order("created_at", { ascending: false });
 
-  return (data || []) as MyFile[];
+  return (data || []).map((m) => {
+    const { path, ...rest } = m as { path: string | null };
+    return { ...rest, hasVideo: !!path } as MyFile;
+  });
 }
