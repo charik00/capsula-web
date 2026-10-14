@@ -246,8 +246,8 @@ export function CabinetTabs({ greeting }: { greeting: string }) {
 
   const TABS: { key: TabKey; label: string; Icon: typeof Video }[] = [
     { key: "meditations", label: "Медитации", Icon: Headphones },
-    { key: "videos", label: "Видео", Icon: Video },
     { key: "triggers", label: "Триггеры", Icon: Flame },
+    { key: "videos", label: "ТЯГА", Icon: Video },
     { key: "videotheque", label: "Видеотека", Icon: Youtube },
     { key: "materials", label: "Материалы", Icon: FileText },
   ];
